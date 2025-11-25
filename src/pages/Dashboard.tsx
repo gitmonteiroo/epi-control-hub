@@ -1,0 +1,220 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Package, AlertTriangle, TrendingDown, Activity } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+interface Product {
+  id: string;
+  name: string;
+  stock_available: number;
+  min_stock: number;
+  unit: string;
+  categories: { name: string } | null;
+}
+
+interface Stats {
+  totalProducts: number;
+  lowStockCount: number;
+  todayWithdrawals: number;
+  criticalStock: number;
+}
+
+export default function Dashboard() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [stats, setStats] = useState<Stats>({
+    totalProducts: 0,
+    lowStockCount: 0,
+    todayWithdrawals: 0,
+    criticalStock: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch all products first to filter in JS
+      const { data: allProducts, error: productsError } = await supabase
+        .from("products")
+        .select("id, name, stock_available, min_stock, unit, categories(name)")
+        .order("stock_available", { ascending: true });
+
+      if (productsError) throw productsError;
+      
+      // Filter products with low stock (available <= min_stock * 1.5)
+      const lowStockProducts = (allProducts || []).filter(
+        p => p.stock_available <= p.min_stock * 1.5
+      ).slice(0, 10);
+      setProducts(lowStockProducts);
+
+      // Calculate statistics
+      const totalCount = allProducts?.length || 0;
+      const lowStockCount = allProducts?.filter(p => p.stock_available <= p.min_stock).length || 0;
+      const criticalCount = allProducts?.filter(p => p.stock_available === 0).length || 0;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { count: todayCount } = await supabase
+        .from("withdrawals")
+        .select("*", { count: "exact", head: true })
+        .gte("created_at", today.toISOString());
+
+      setStats({
+        totalProducts: totalCount,
+        lowStockCount: lowStockCount,
+        todayWithdrawals: todayCount || 0,
+        criticalStock: criticalCount,
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStockStatus = (available: number, min: number) => {
+    if (available === 0) return { label: "Crítico", variant: "danger" as const };
+    if (available <= min) return { label: "Baixo", variant: "warning" as const };
+    if (available <= min * 1.5) return { label: "Atenção", variant: "warning" as const };
+    return { label: "Normal", variant: "success" as const };
+  };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">Visão geral do sistema de EPIs</p>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalProducts}</div>
+              <p className="text-xs text-muted-foreground">
+                Produtos cadastrados
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Estoque Baixo</CardTitle>
+              <TrendingDown className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-warning">{stats.lowStockCount}</div>
+              <p className="text-xs text-muted-foreground">
+                Necessitam reposição
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Crítico</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-danger" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-danger">{stats.criticalStock}</div>
+              <p className="text-xs text-muted-foreground">
+                Estoque zerado
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Retiradas Hoje</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.todayWithdrawals}</div>
+              <p className="text-xs text-muted-foreground">
+                Movimentações do dia
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Low Stock Alert */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Alertas de Estoque
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {products.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhum produto com estoque baixo no momento.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {products.map((product) => {
+                  const status = getStockStatus(product.stock_available, product.min_stock);
+                  return (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-accent/50"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{product.name}</p>
+                          <Badge variant={status.variant}>{status.label}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {product.categories?.name || "Sem categoria"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm font-medium">
+                            {product.stock_available} {product.unit}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Mín: {product.min_stock} {product.unit}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => navigate(`/products/${product.id}`)}
+                        >
+                          Ver Detalhes
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </AppLayout>
+  );
+}
