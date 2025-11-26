@@ -5,9 +5,10 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Edit, Package, TrendingDown } from "lucide-react";
+import { ArrowLeft, Edit, Package, TrendingDown, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
 
 interface Product {
   id: string;
@@ -36,12 +37,13 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (id) fetchProduct();
+    if (id) fetchData();
   }, [id]);
 
-  const fetchProduct = async () => {
+  const fetchData = async () => {
     try {
       const { data: productData, error: productError } = await supabase
         .from("products")
@@ -118,12 +120,18 @@ export default function ProductDetail() {
               </p>
             </div>
           </div>
-          {isAdmin && (
-            <Button onClick={() => navigate(`/products/${id}/edit`)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Editar
+          <div className="flex gap-2">
+            <Button onClick={() => setWithdrawalDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Registrar Retirada
             </Button>
-          )}
+            {isAdmin && (
+              <Button variant="outline" onClick={() => navigate(`/products/${id}/edit`)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Editar
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -245,6 +253,13 @@ export default function ProductDetail() {
           </CardContent>
         </Card>
       </div>
+
+      <WithdrawalDialog
+        open={withdrawalDialogOpen}
+        onOpenChange={setWithdrawalDialogOpen}
+        productId={id}
+        onSuccess={fetchData}
+      />
     </AppLayout>
   );
 }
