@@ -4,8 +4,9 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, AlertTriangle, TrendingDown, Activity } from "lucide-react";
+import { Package, AlertTriangle, TrendingDown, Activity, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
 
 interface Product {
   id: string;
@@ -32,6 +33,7 @@ export default function Dashboard() {
     criticalStock: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -100,9 +102,15 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral do sistema de EPIs</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-muted-foreground">Visão geral do sistema de EPIs</p>
+          </div>
+          <Button onClick={() => setWithdrawalDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Registrar Retirada
+          </Button>
         </div>
 
         {/* Stats Grid */}
@@ -215,6 +223,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <WithdrawalDialog
+        open={withdrawalDialogOpen}
+        onOpenChange={setWithdrawalDialogOpen}
+        onSuccess={fetchDashboardData}
+      />
     </AppLayout>
   );
 }
