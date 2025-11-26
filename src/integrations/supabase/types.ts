@@ -81,36 +81,45 @@ export type Database = {
       }
       profiles: {
         Row: {
+          badge_number: string | null
           created_at: string
           department: string | null
           email: string
           employee_id: string
           full_name: string
+          hire_date: string | null
           id: string
+          job_function: string | null
           phone: string | null
           position: string | null
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
         }
         Insert: {
+          badge_number?: string | null
           created_at?: string
           department?: string | null
           email: string
           employee_id: string
           full_name: string
+          hire_date?: string | null
           id: string
+          job_function?: string | null
           phone?: string | null
           position?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
         }
         Update: {
+          badge_number?: string | null
           created_at?: string
           department?: string | null
           email?: string
           employee_id?: string
           full_name?: string
+          hire_date?: string | null
           id?: string
+          job_function?: string | null
           phone?: string | null
           position?: string | null
           role?: Database["public"]["Enums"]["user_role"]
