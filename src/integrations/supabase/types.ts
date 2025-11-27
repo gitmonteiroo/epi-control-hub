@@ -93,6 +93,7 @@ export type Database = {
           phone: string | null
           position: string | null
           role: Database["public"]["Enums"]["user_role"]
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -108,6 +109,7 @@ export type Database = {
           phone?: string | null
           position?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -123,9 +125,55 @@ export type Database = {
           phone?: string | null
           position?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      stock_movements: {
+        Row: {
+          created_at: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          product_id: string
+          quantity: number
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity: number
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity?: number
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       withdrawals: {
         Row: {

@@ -21,6 +21,9 @@ const employeeSchema = z.object({
   badge_number: z.string().min(1, "Número do crachá é obrigatório").max(50, "Número muito longo"),
   hire_date: z.string().min(1, "Data de admissão é obrigatória"),
   phone: z.string().optional(),
+  status: z.enum(["ativo", "inativo"], {
+    required_error: "Status é obrigatório",
+  }),
   role: z.enum(["admin", "operator"], {
     required_error: "Papel é obrigatório",
   }),
@@ -50,6 +53,7 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
       badge_number: "",
       hire_date: "",
       phone: "",
+      status: "ativo",
       role: "operator",
     },
   });
@@ -81,6 +85,7 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
           badge_number: data.badge_number || "",
           hire_date: data.hire_date || "",
           phone: data.phone || "",
+          status: (data.status as "ativo" | "inativo") || "ativo",
           role: data.role,
         });
       }
@@ -109,6 +114,7 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
             badge_number: values.badge_number,
             hire_date: values.hire_date,
             phone: values.phone || null,
+            status: values.status,
             role: values.role,
           })
           .eq("id", employeeId);
@@ -146,6 +152,7 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
               badge_number: values.badge_number,
               hire_date: values.hire_date,
               phone: values.phone || null,
+              status: values.status,
             })
             .eq("id", authData.user.id);
 
@@ -294,6 +301,28 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
                 <FormControl>
                   <Input placeholder="(11) 98765-4321" {...field} />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="status"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="ativo">Ativo</SelectItem>
+                    <SelectItem value="inativo">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

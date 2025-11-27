@@ -7,6 +7,7 @@ import {
   FolderTree,
   ClipboardList,
   FileText,
+  ArrowLeftRight,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -44,6 +45,11 @@ const navItems: NavItem[] = [
     title: "Retiradas",
     href: "/withdrawals",
     icon: ClipboardList,
+  },
+  {
+    title: "Movimentações",
+    href: "/movements",
+    icon: ArrowLeftRight,
   },
   {
     title: "Relatórios",
