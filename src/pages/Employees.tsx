@@ -21,6 +21,7 @@ interface Employee {
   hire_date: string | null;
   email: string;
   phone: string | null;
+  status: string | null;
   role: "admin" | "operator";
 }
 
@@ -135,7 +136,15 @@ export default function Employees() {
               <Card key={employee.id}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg">{employee.full_name}</CardTitle>
+                    <div>
+                      <CardTitle className="text-lg">{employee.full_name}</CardTitle>
+                      <Badge 
+                        variant={employee.status === "ativo" ? "default" : "secondary"}
+                        className="mt-1"
+                      >
+                        {employee.status === "ativo" ? "Ativo" : "Inativo"}
+                      </Badge>
+                    </div>
                     <div className="flex gap-2">
                       <Badge variant={employee.role === "admin" ? "default" : "secondary"}>
                         {employee.role}

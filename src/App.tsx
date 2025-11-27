@@ -13,6 +13,7 @@ import ProductForm from "./pages/ProductForm";
 import Categories from "./pages/Categories";
 import Employees from "./pages/Employees";
 import Withdrawals from "./pages/Withdrawals";
+import Movements from "./pages/Movements";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
             <Route path="/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
             <Route path="/withdrawals" element={<ProtectedRoute><Withdrawals /></ProtectedRoute>} />
+            <Route path="/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
             <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
