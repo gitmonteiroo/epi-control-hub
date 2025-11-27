@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
+import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { format, subDays, startOfDay } from "date-fns";
 
 interface Stats {
   totalProducts: number;
@@ -26,6 +28,22 @@ interface Product {
   categories: { name: string } | null;
 }
 
+interface WithdrawalData {
+  product_name: string;
+  total: number;
+}
+
+interface MovementData {
+  date: string;
+  entradas: number;
+  saidas: number;
+}
+
+interface StockTrendData {
+  date: string;
+  estoque: number;
+}
+
 export default function Reports() {
   const [stats, setStats] = useState<Stats>({
     totalProducts: 0,
@@ -34,6 +52,9 @@ export default function Reports() {
     totalWithdrawals: 0,
   });
   const [products, setProducts] = useState<Product[]>([]);
+  const [topWithdrawals, setTopWithdrawals] = useState<WithdrawalData[]>([]);
+  const [movementTrend, setMovementTrend] = useState<MovementData[]>([]);
+  const [stockTrend, setStockTrend] = useState<StockTrendData[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -43,10 +64,14 @@ export default function Reports() {
 
   const fetchData = async () => {
     try {
-      const [productsRes, employeesRes, withdrawalsRes] = await Promise.all([
+      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+      
+      const [productsRes, employeesRes, withdrawalsRes, topWithdrawalsRes, movementsRes] = await Promise.all([
         supabase.from("products").select("*, categories(name)"),
         supabase.from("profiles").select("id"),
         supabase.from("withdrawals").select("id"),
+        supabase.from("withdrawals").select("quantity, products(name)"),
+        supabase.from("stock_movements").select("type, quantity, created_at").gte("created_at", thirtyDaysAgo),
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -64,6 +89,70 @@ export default function Reports() {
       });
 
       setProducts(productsData);
+
+      // Process top withdrawals
+      if (topWithdrawalsRes.data) {
+        const withdrawalMap = new Map<string, number>();
+        topWithdrawalsRes.data.forEach((w: any) => {
+          const productName = w.products?.name || "Desconhecido";
+          withdrawalMap.set(productName, (withdrawalMap.get(productName) || 0) + w.quantity);
+        });
+        
+        const topWithdrawalsData = Array.from(withdrawalMap.entries())
+          .map(([product_name, total]) => ({ product_name, total }))
+          .sort((a, b) => b.total - a.total)
+          .slice(0, 10);
+        
+        setTopWithdrawals(topWithdrawalsData);
+      }
+
+      // Process movement trends (last 30 days)
+      if (movementsRes.data) {
+        const movementMap = new Map<string, { entradas: number; saidas: number }>();
+        
+        movementsRes.data.forEach((m: any) => {
+          const date = format(new Date(m.created_at), "dd/MM");
+          const current = movementMap.get(date) || { entradas: 0, saidas: 0 };
+          
+          if (m.type === "entrada") {
+            current.entradas += m.quantity;
+          } else {
+            current.saidas += m.quantity;
+          }
+          
+          movementMap.set(date, current);
+        });
+        
+        const movementData = Array.from(movementMap.entries())
+          .map(([date, data]) => ({ date, ...data }))
+          .sort((a, b) => {
+            const [dayA, monthA] = a.date.split("/").map(Number);
+            const [dayB, monthB] = b.date.split("/").map(Number);
+            return monthA !== monthB ? monthA - monthB : dayA - dayB;
+          });
+        
+        setMovementTrend(movementData);
+
+        // Calculate stock trend based on movements
+        let currentStock = productsData.reduce((sum, p) => sum + p.stock_available, 0);
+        const stockData: StockTrendData[] = [];
+        
+        for (let i = 29; i >= 0; i--) {
+          const date = format(subDays(new Date(), i), "dd/MM");
+          const dayMovements = movementsRes.data.filter((m: any) => 
+            format(new Date(m.created_at), "dd/MM") === date
+          );
+          
+          const dayChange = dayMovements.reduce((sum: number, m: any) => {
+            return sum + (m.type === "entrada" ? -m.quantity : m.quantity);
+          }, 0);
+          
+          currentStock -= dayChange;
+          stockData.push({ date, estoque: Math.max(0, currentStock) });
+        }
+        
+        setStockTrend(stockData.reverse());
+      }
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -208,6 +297,108 @@ export default function Reports() {
             </CardContent>
           </Card>
         </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Evolução do Estoque Total (30 dias)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={stockTrend}>
+                  <defs>
+                    <linearGradient id="colorEstoque" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="date" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: "hsl(var(--card))", 
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px"
+                    }} 
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="estoque" 
+                    stroke="hsl(var(--primary))" 
+                    fillOpacity={1} 
+                    fill="url(#colorEstoque)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Movimentações (30 dias)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={movementTrend}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="date" className="text-xs" />
+                  <YAxis className="text-xs" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: "hsl(var(--card))", 
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px"
+                    }} 
+                  />
+                  <Legend />
+                  <Line 
+                    type="monotone" 
+                    dataKey="entradas" 
+                    stroke="hsl(var(--chart-2))" 
+                    strokeWidth={2}
+                    name="Entradas"
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="saidas" 
+                    stroke="hsl(var(--chart-1))" 
+                    strokeWidth={2}
+                    name="Saídas"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top 10 EPIs Mais Retirados</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={topWithdrawals} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis type="number" className="text-xs" />
+                <YAxis dataKey="product_name" type="category" width={150} className="text-xs" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: "hsl(var(--card))", 
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px"
+                  }} 
+                />
+                <Bar 
+                  dataKey="total" 
+                  fill="hsl(var(--primary))" 
+                  radius={[0, 8, 8, 0]}
+                  name="Quantidade Retirada"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
