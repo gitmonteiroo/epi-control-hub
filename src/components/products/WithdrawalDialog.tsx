@@ -15,7 +15,7 @@ const withdrawalSchema = z.object({
   product_id: z.string().min(1, "Produto é obrigatório"),
   employee_id: z.string().min(1, "Funcionário é obrigatório"),
   quantity: z.coerce.number().min(1, "Quantidade deve ser >= 1"),
-  reason: z.string().optional(),
+  reason: z.string().min(1, "Motivo é obrigatório"),
 });
 
 type WithdrawalFormData = z.infer<typeof withdrawalSchema>;
@@ -52,7 +52,7 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
       product_id: productId || "",
       employee_id: "",
       quantity: 1,
-      reason: "",
+      reason: "uso_trabalho",
     },
   });
 
@@ -107,7 +107,7 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
         product_id: data.product_id,
         employee_id: data.employee_id,
         quantity: data.quantity,
-        reason: data.reason || null,
+        reason: data.reason,
       });
 
       if (error) throw error;
@@ -211,14 +211,22 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
               name="reason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Motivo (Opcional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Ex: Substituição de EPI danificado"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
+                  <FormLabel>Motivo da Retirada</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o motivo" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="uso_trabalho">Uso no Trabalho</SelectItem>
+                      <SelectItem value="treinamento">Treinamento</SelectItem>
+                      <SelectItem value="substituicao">Substituição (Dano/Perda)</SelectItem>
+                      <SelectItem value="manutencao">Manutenção</SelectItem>
+                      <SelectItem value="primeiro_fornecimento">Primeiro Fornecimento</SelectItem>
+                      <SelectItem value="outros">Outros</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

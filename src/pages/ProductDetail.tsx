@@ -12,6 +12,7 @@ import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
 
 interface Product {
   id: string;
+  code: string | null;
   name: string;
   description: string | null;
   stock_available: number;
@@ -140,6 +141,12 @@ export default function ProductDetail() {
               <CardTitle>Informações do Produto</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {product.code && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Código</p>
+                  <p className="text-lg font-semibold font-mono">{product.code}</p>
+                </div>
+              )}
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Descrição</p>
                 <p className="text-base">{product.description || "Sem descrição"}</p>

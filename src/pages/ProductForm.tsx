@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
 
 const productSchema = z.object({
+  code: z.string().optional(),
   name: z.string().min(1, "Nome é obrigatório"),
   description: z.string().optional(),
   category_id: z.string().min(1, "Categoria é obrigatória"),
@@ -40,11 +41,12 @@ export default function ProductForm() {
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
+      code: "",
       name: "",
       description: "",
       category_id: "",
       stock_available: 0,
-      min_stock: 10,
+      min_stock: 5,
       unit: "UN",
     },
   });
@@ -77,6 +79,7 @@ export default function ProductForm() {
 
     if (data) {
       form.reset({
+        code: data.code || "",
         name: data.name,
         description: data.description || "",
         category_id: data.category_id || "",
@@ -91,6 +94,7 @@ export default function ProductForm() {
     setLoading(true);
     try {
       const productData = {
+        code: data.code || null,
         name: data.name,
         description: data.description || null,
         category_id: data.category_id,
@@ -143,11 +147,25 @@ export default function ProductForm() {
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Código</FormLabel>
+                  <FormControl>
+                    <Input placeholder="EPI-001" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
                     <FormItem>
                       <FormLabel>Nome do Produto</FormLabel>
                       <FormControl>
