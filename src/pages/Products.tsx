@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface Product {
   id: string;
+  code: string | null;
   name: string;
   description: string | null;
   stock_available: number;
@@ -43,7 +44,7 @@ export default function Products() {
       const [productsRes, categoriesRes] = await Promise.all([
         supabase
           .from("products")
-          .select("id, name, description, stock_available, min_stock, unit, categories(id, name)")
+          .select("id, code, name, description, stock_available, min_stock, unit, categories(id, name)")
           .order("name"),
         supabase
           .from("categories")
@@ -156,7 +157,12 @@ export default function Products() {
                 >
                   <CardHeader>
                     <div className="flex items-start justify-between">
-                      <CardTitle className="text-lg">{product.name}</CardTitle>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">{product.name}</CardTitle>
+                        {product.code && (
+                          <p className="text-sm text-muted-foreground font-mono mt-1">Código: {product.code}</p>
+                        )}
+                      </div>
                       <Badge variant={status.variant}>{status.label}</Badge>
                     </div>
                     {product.categories && (

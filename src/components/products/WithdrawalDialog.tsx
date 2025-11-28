@@ -28,6 +28,7 @@ interface Employee {
 
 interface Product {
   id: string;
+  code: string | null;
   name: string;
   stock_available: number;
   unit: string;
@@ -85,7 +86,7 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
   const fetchProducts = async () => {
     const { data } = await supabase
       .from("products")
-      .select("id, name, stock_available, unit")
+      .select("id, code, name, stock_available, unit")
       .order("name");
     setProducts(data || []);
   };
@@ -147,7 +148,7 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.name} ({product.stock_available} {product.unit} disponíveis)
+                          {product.code ? `[${product.code}] ` : ""}{product.name} ({product.stock_available} {product.unit} disponíveis)
                         </SelectItem>
                       ))}
                     </SelectContent>
