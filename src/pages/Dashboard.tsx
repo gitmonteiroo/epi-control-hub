@@ -4,7 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, AlertTriangle, TrendingDown, Activity, Plus } from "lucide-react";
+import { Package, AlertTriangle, TrendingDown, Activity, Plus, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
 
@@ -229,6 +229,29 @@ export default function Dashboard() {
         onOpenChange={setWithdrawalDialogOpen}
         onSuccess={fetchDashboardData}
       />
+      
+      {/* Footer with Settings and Credits */}
+      <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => navigate("/settings")}
+        >
+          <Settings className="mr-2 h-4 w-4" />
+          Configurações
+        </Button>
+        <p className="text-sm text-muted-foreground">
+          Criado por:{" "}
+          <a 
+            href="https://www.linkedin.com/in/cesar-monteiro-030bb3170" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Cesar Monteiro
+          </a>
+        </p>
+      </div>
     </AppLayout>
   );
 }

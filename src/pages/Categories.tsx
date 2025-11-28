@@ -31,6 +31,7 @@ interface Category {
   id: string;
   name: string;
   description: string | null;
+  color: string | null;
   created_at: string;
 }
 
@@ -40,7 +41,7 @@ export default function Categories() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ name: "", description: "" });
+  const [formData, setFormData] = useState({ name: "", description: "", color: "#6366f1" });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function Categories() {
       }
 
       setDialogOpen(false);
-      setFormData({ name: "", description: "" });
+      setFormData({ name: "", description: "", color: "#6366f1" });
       setSelectedCategory(null);
       fetchCategories();
     } catch (error: any) {
@@ -127,13 +128,13 @@ export default function Categories() {
 
   const openEditDialog = (category: Category) => {
     setSelectedCategory(category);
-    setFormData({ name: category.name, description: category.description || "" });
+    setFormData({ name: category.name, description: category.description || "", color: category.color || "#6366f1" });
     setDialogOpen(true);
   };
 
   const openNewDialog = () => {
     setSelectedCategory(null);
-    setFormData({ name: "", description: "" });
+    setFormData({ name: "", description: "", color: "#6366f1" });
     setDialogOpen(true);
   };
 
@@ -181,7 +182,13 @@ export default function Categories() {
               <Card key={category.id}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
-                    <span className="text-lg">{category.name}</span>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-4 h-4 rounded-full border-2 border-border" 
+                        style={{ backgroundColor: category.color || "#6366f1" }}
+                      />
+                      <span className="text-lg">{category.name}</span>
+                    </div>
                     <div className="flex gap-2">
                       <Button
                         size="icon"
@@ -247,6 +254,27 @@ export default function Categories() {
                 disabled={saving}
                 rows={3}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="color">Cor</Label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  id="color"
+                  type="color"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  disabled={saving}
+                  className="w-20 h-10 cursor-pointer"
+                />
+                <Input
+                  type="text"
+                  value={formData.color}
+                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                  disabled={saving}
+                  placeholder="#6366f1"
+                  className="flex-1"
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button
