@@ -153,7 +153,7 @@ export default function ProductForm() {
               name="code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Código</FormLabel>
+                  <FormLabel>Código (Opcional)</FormLabel>
                   <FormControl>
                     <Input placeholder="EPI-001" {...field} />
                   </FormControl>
