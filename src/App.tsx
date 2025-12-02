@@ -30,9 +30,9 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-            <Route path="/products/new" element={<ProtectedRoute adminOnly><ProductForm /></ProtectedRoute>} />
+            <Route path="/products/new" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
             <Route path="/products/:id" element={<ProtectedRoute><ProductDetail /></ProtectedRoute>} />
-            <Route path="/products/:id/edit" element={<ProtectedRoute adminOnly><ProductForm /></ProtectedRoute>} />
+            <Route path="/products/:id/edit" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
             <Route path="/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
             <Route path="/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
             <Route path="/withdrawals" element={<ProtectedRoute><Withdrawals /></ProtectedRoute>} />

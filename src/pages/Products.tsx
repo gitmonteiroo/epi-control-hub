@@ -96,12 +96,10 @@ export default function Products() {
             <h1 className="text-3xl font-bold text-foreground">Produtos</h1>
             <p className="text-muted-foreground">Gestão de produtos e EPIs</p>
           </div>
-          {isAdmin && (
-            <Button onClick={() => navigate("/products/new")}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Produto
-            </Button>
-          )}
+          <Button onClick={() => navigate("/products/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Produto
+          </Button>
         </div>
 
         {/* Filters */}
