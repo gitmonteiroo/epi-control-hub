@@ -5,10 +5,11 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Edit, Package, TrendingDown, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Package, TrendingDown, Plus, RotateCcw, Shield } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
+import { ReturnDialog } from "@/components/products/ReturnDialog";
 
 interface Product {
   id: string;
@@ -18,6 +19,8 @@ interface Product {
   stock_available: number;
   min_stock: number;
   unit: string;
+  ca_number: string | null;
+  size: string | null;
   created_at: string;
   updated_at: string;
   categories: { id: string; name: string } | null;
@@ -31,14 +34,25 @@ interface Withdrawal {
   profiles: { full_name: string; employee_id: string } | null;
 }
 
+interface Return {
+  id: string;
+  quantity: number;
+  reason: string | null;
+  condition: string | null;
+  created_at: string;
+  profiles: { full_name: string; employee_id: string } | null;
+}
+
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [returns, setReturns] = useState<Return[]>([]);
   const [loading, setLoading] = useState(true);
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
   useEffect(() => {
     if (id) fetchData();
@@ -64,6 +78,16 @@ export default function ProductDetail() {
 
       if (withdrawalsError) throw withdrawalsError;
       setWithdrawals(withdrawalsData || []);
+
+      const { data: returnsData, error: returnsError } = await supabase
+        .from("returns")
+        .select("id, quantity, reason, condition, created_at, profiles(full_name, employee_id)")
+        .eq("product_id", id!)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (returnsError) throw returnsError;
+      setReturns(returnsData || []);
     } catch (error) {
       console.error("Error fetching product:", error);
       toast.error("Erro ao carregar produto");
@@ -90,6 +114,16 @@ export default function ProductDetail() {
     });
   };
 
+  const getConditionLabel = (condition: string | null) => {
+    const labels: Record<string, string> = {
+      bom: "Bom Estado",
+      danificado: "Danificado",
+      desgastado: "Desgastado",
+      vencido: "Vencido",
+    };
+    return labels[condition || ""] || condition;
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -109,19 +143,30 @@ export default function ProductDetail() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" onClick={() => navigate("/products")}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
+                {product.code && (
+                  <Badge variant="outline" className="font-mono">
+                    {product.code}
+                  </Badge>
+                )}
+              </div>
               <p className="text-muted-foreground">
                 {product.categories?.name || "Sem categoria"}
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setReturnDialogOpen(true)}>
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Registrar Devolução
+            </Button>
             <Button onClick={() => setWithdrawalDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Registrar Retirada
@@ -145,6 +190,21 @@ export default function ProductDetail() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Código</p>
                   <p className="text-lg font-semibold font-mono">{product.code}</p>
+                </div>
+              )}
+              {product.ca_number && (
+                <div className="flex items-start gap-2">
+                  <Shield className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">CA (Certificado de Aprovação)</p>
+                    <p className="text-lg font-semibold">{product.ca_number}</p>
+                  </div>
+                </div>
+              )}
+              {product.size && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Tamanho</p>
+                  <Badge variant="secondary" className="text-base">{product.size}</Badge>
                 </div>
               )}
               <div>
@@ -216,54 +276,116 @@ export default function ProductDetail() {
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Retiradas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {withdrawals.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Nenhuma retirada registrada para este produto
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {withdrawals.map((withdrawal) => (
-                  <div
-                    key={withdrawal.id}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {withdrawal.profiles?.full_name || "Funcionário não encontrado"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Mat: {withdrawal.profiles?.employee_id}
-                      </p>
-                      {withdrawal.reason && (
-                        <p className="text-sm text-muted-foreground italic mt-1">
-                          {withdrawal.reason}
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-danger">
+                <TrendingDown className="h-5 w-5" />
+                Histórico de Retiradas
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {withdrawals.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Nenhuma retirada registrada
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {withdrawals.map((withdrawal) => (
+                    <div
+                      key={withdrawal.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          {withdrawal.profiles?.full_name || "Funcionário não encontrado"}
                         </p>
-                      )}
+                        <p className="text-sm text-muted-foreground">
+                          Mat: {withdrawal.profiles?.employee_id}
+                        </p>
+                        {withdrawal.reason && (
+                          <p className="text-sm text-muted-foreground italic mt-1">
+                            {withdrawal.reason}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold text-danger">
+                          -{withdrawal.quantity} {product.unit}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(withdrawal.created_at)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-semibold text-danger">
-                        -{withdrawal.quantity} {product.unit}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(withdrawal.created_at)}
-                      </p>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-success">
+                <RotateCcw className="h-5 w-5" />
+                Histórico de Devoluções
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {returns.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Nenhuma devolução registrada
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {returns.map((returnItem) => (
+                    <div
+                      key={returnItem.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          {returnItem.profiles?.full_name || "Funcionário não encontrado"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Mat: {returnItem.profiles?.employee_id}
+                        </p>
+                        <Badge variant="outline" className="mt-1">
+                          {getConditionLabel(returnItem.condition)}
+                        </Badge>
+                        {returnItem.reason && (
+                          <p className="text-sm text-muted-foreground italic mt-1">
+                            {returnItem.reason}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-semibold text-success">
+                          +{returnItem.quantity} {product.unit}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(returnItem.created_at)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <WithdrawalDialog
         open={withdrawalDialogOpen}
         onOpenChange={setWithdrawalDialogOpen}
+        productId={id}
+        onSuccess={fetchData}
+      />
+
+      <ReturnDialog
+        open={returnDialogOpen}
+        onOpenChange={setReturnDialogOpen}
         productId={id}
         onSuccess={fetchData}
       />
