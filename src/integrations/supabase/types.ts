@@ -40,6 +40,7 @@ export type Database = {
       }
       products: {
         Row: {
+          ca_number: string | null
           category_id: string | null
           code: string | null
           created_at: string
@@ -47,11 +48,13 @@ export type Database = {
           id: string
           min_stock: number
           name: string
+          size: string | null
           stock_available: number
           unit: string
           updated_at: string
         }
         Insert: {
+          ca_number?: string | null
           category_id?: string | null
           code?: string | null
           created_at?: string
@@ -59,11 +62,13 @@ export type Database = {
           id?: string
           min_stock?: number
           name: string
+          size?: string | null
           stock_available?: number
           unit?: string
           updated_at?: string
         }
         Update: {
+          ca_number?: string | null
           category_id?: string | null
           code?: string | null
           created_at?: string
@@ -71,6 +76,7 @@ export type Database = {
           id?: string
           min_stock?: number
           name?: string
+          size?: string | null
           stock_available?: number
           unit?: string
           updated_at?: string
@@ -135,6 +141,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      returns: {
+        Row: {
+          condition: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          product_id: string
+          quantity: number
+          reason: string | null
+        }
+        Insert: {
+          condition?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          product_id: string
+          quantity: number
+          reason?: string | null
+        }
+        Update: {
+          condition?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "returns_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "returns_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_movements: {
         Row: {

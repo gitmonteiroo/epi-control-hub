@@ -22,6 +22,8 @@ const productSchema = z.object({
   stock_available: z.coerce.number().min(0, "Estoque deve ser >= 0"),
   min_stock: z.coerce.number().min(0, "Estoque mínimo deve ser >= 0"),
   unit: z.string().min(1, "Unidade é obrigatória"),
+  ca_number: z.string().optional(),
+  size: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -30,6 +32,8 @@ interface Category {
   id: string;
   name: string;
 }
+
+const SIZES = ["PP", "P", "M", "G", "GG", "XG", "XXG", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "Único"];
 
 export default function ProductForm() {
   const { id } = useParams();
@@ -48,6 +52,8 @@ export default function ProductForm() {
       stock_available: 0,
       min_stock: 5,
       unit: "UN",
+      ca_number: "",
+      size: "",
     },
   });
 
@@ -86,6 +92,8 @@ export default function ProductForm() {
         stock_available: data.stock_available,
         min_stock: data.min_stock,
         unit: data.unit,
+        ca_number: data.ca_number || "",
+        size: data.size || "",
       });
     }
   };
@@ -101,6 +109,8 @@ export default function ProductForm() {
         stock_available: data.stock_available,
         min_stock: data.min_stock,
         unit: data.unit,
+        ca_number: data.ca_number || null,
+        size: data.size || null,
       };
 
       if (isEditing) {
@@ -166,33 +176,74 @@ export default function ProductForm() {
               control={form.control}
               name="name"
               render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome do Produto</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Ex: Capacete de Segurança" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <FormItem>
+                  <FormLabel>Nome do Produto</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Capacete de Segurança" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Descrição (Opcional)</FormLabel>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="ca_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CA (Certificado de Aprovação)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: 12345" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="size"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tamanho</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <Textarea
-                          placeholder="Descrição detalhada do produto..."
-                          className="resize-none"
-                          {...field}
-                        />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tamanho" />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <SelectContent>
+                        {SIZES.map((size) => (
+                          <SelectItem key={size} value={size}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição (Opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Descrição detalhada do produto..."
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
                 <FormField
                   control={form.control}
