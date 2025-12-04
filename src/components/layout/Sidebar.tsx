@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FileText,
   ArrowLeftRight,
+  UserCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -55,6 +56,11 @@ const navItems: NavItem[] = [
     title: "Relatórios",
     href: "/reports",
     icon: FileText,
+  },
+  {
+    title: "EPIs por Funcionário",
+    href: "/reports/employee-epi",
+    icon: UserCheck,
   },
 ];
 
