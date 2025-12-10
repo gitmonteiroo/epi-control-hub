@@ -2,14 +2,35 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+import { fetchEmployees, type Employee } from "@/services/employeeService";
+import { createWithdrawal } from "@/services/movementService";
+import { WITHDRAWAL_REASONS } from "@/utils/stock";
+import { supabase } from "@/integrations/supabase/client";
 
 const withdrawalSchema = z.object({
   product_id: z.string().min(1, "Produto é obrigatório"),
@@ -19,12 +40,6 @@ const withdrawalSchema = z.object({
 });
 
 type WithdrawalFormData = z.infer<typeof withdrawalSchema>;
-
-interface Employee {
-  id: string;
-  full_name: string;
-  employee_id: string;
-}
 
 interface Product {
   id: string;
@@ -41,7 +56,12 @@ interface WithdrawalDialogProps {
   onSuccess?: () => void;
 }
 
-export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: WithdrawalDialogProps) {
+export function WithdrawalDialog({
+  open,
+  onOpenChange,
+  productId,
+  onSuccess,
+}: WithdrawalDialogProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,8 +79,7 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
 
   useEffect(() => {
     if (open) {
-      fetchEmployees();
-      fetchProducts();
+      loadData();
     }
   }, [open]);
 
@@ -68,27 +87,29 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
     if (productId) {
       form.setValue("product_id", productId);
     }
-  }, [productId]);
+  }, [productId, form]);
 
   useEffect(() => {
-    const product = products.find(p => p.id === form.watch("product_id"));
+    const productIdValue = form.watch("product_id");
+    const product = products.find((p) => p.id === productIdValue);
     setSelectedProduct(product || null);
   }, [form.watch("product_id"), products]);
 
-  const fetchEmployees = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, employee_id")
-      .order("full_name");
-    setEmployees(data || []);
-  };
+  const loadData = async () => {
+    try {
+      const [employeesData, productsRes] = await Promise.all([
+        fetchEmployees(),
+        supabase
+          .from("products")
+          .select("id, code, name, stock_available, unit")
+          .order("name"),
+      ]);
 
-  const fetchProducts = async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("id, code, name, stock_available, unit")
-      .order("name");
-    setProducts(data || []);
+      setEmployees(employeesData);
+      setProducts(productsRes.data || []);
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
   };
 
   const onSubmit = async (data: WithdrawalFormData) => {
@@ -98,27 +119,28 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
     }
 
     if (data.quantity > selectedProduct.stock_available) {
-      toast.error(`Quantidade indisponível. Estoque atual: ${selectedProduct.stock_available} ${selectedProduct.unit}`);
+      toast.error(
+        `Quantidade indisponível. Estoque atual: ${selectedProduct.stock_available} ${selectedProduct.unit}`
+      );
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("withdrawals").insert({
+      await createWithdrawal({
         product_id: data.product_id,
         employee_id: data.employee_id,
         quantity: data.quantity,
         reason: data.reason,
       });
-
-      if (error) throw error;
-
       toast.success("Retirada registrada com sucesso");
       form.reset();
       onOpenChange(false);
       onSuccess?.();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao registrar retirada");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao registrar retirada";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -129,6 +151,9 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Registrar Retirada de EPI</DialogTitle>
+          <DialogDescription>
+            Preencha os dados para registrar uma nova retirada de equipamento.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -148,7 +173,9 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.code ? `[${product.code}] ` : ""}{product.name} ({product.stock_available} {product.unit} disponíveis)
+                          {product.code ? `[${product.code}] ` : ""}
+                          {product.name} ({product.stock_available}{" "}
+                          {product.unit} disponíveis)
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -199,7 +226,8 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
                   </FormControl>
                   {selectedProduct && (
                     <p className="text-sm text-muted-foreground">
-                      Disponível: {selectedProduct.stock_available} {selectedProduct.unit}
+                      Disponível: {selectedProduct.stock_available}{" "}
+                      {selectedProduct.unit}
                     </p>
                   )}
                   <FormMessage />
@@ -220,12 +248,11 @@ export function WithdrawalDialog({ open, onOpenChange, productId, onSuccess }: W
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="uso_trabalho">Uso no Trabalho</SelectItem>
-                      <SelectItem value="treinamento">Treinamento</SelectItem>
-                      <SelectItem value="substituicao">Substituição (Dano/Perda)</SelectItem>
-                      <SelectItem value="manutencao">Manutenção</SelectItem>
-                      <SelectItem value="primeiro_fornecimento">Primeiro Fornecimento</SelectItem>
-                      <SelectItem value="outros">Outros</SelectItem>
+                      {WITHDRAWAL_REASONS.map((reason) => (
+                        <SelectItem key={reason.value} value={reason.value}>
+                          {reason.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

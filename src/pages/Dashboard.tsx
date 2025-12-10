@@ -1,12 +1,25 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, AlertTriangle, TrendingDown, Activity, Plus, Settings } from "lucide-react";
+import { StatsCard } from "@/components/ui/stats-card";
+import { LoadingPage } from "@/components/ui/loading";
+import { PageHeader } from "@/components/ui/page-header";
+import {
+  Package,
+  AlertTriangle,
+  TrendingDown,
+  Activity,
+  Plus,
+  Settings,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
+import { fetchLowStockProducts } from "@/services/productService";
+import { fetchTodayWithdrawalsCount } from "@/services/movementService";
+import { getStockStatus } from "@/utils/stock";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Product {
   id: string;
@@ -42,37 +55,31 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch all products first to filter in JS
       const { data: allProducts, error: productsError } = await supabase
         .from("products")
         .select("id, name, stock_available, min_stock, unit, categories(name)")
         .order("stock_available", { ascending: true });
 
       if (productsError) throw productsError;
-      
-      // Filter products with low stock (available <= min_stock * 1.5)
-      const lowStockProducts = (allProducts || []).filter(
-        p => p.stock_available <= p.min_stock * 1.5
-      ).slice(0, 10);
+
+      const lowStockProducts = (allProducts || [])
+        .filter((p) => p.stock_available <= p.min_stock * 1.5)
+        .slice(0, 10);
       setProducts(lowStockProducts);
 
-      // Calculate statistics
       const totalCount = allProducts?.length || 0;
-      const lowStockCount = allProducts?.filter(p => p.stock_available <= p.min_stock).length || 0;
-      const criticalCount = allProducts?.filter(p => p.stock_available === 0).length || 0;
+      const lowStockCount =
+        allProducts?.filter((p) => p.stock_available <= p.min_stock).length ||
+        0;
+      const criticalCount =
+        allProducts?.filter((p) => p.stock_available === 0).length || 0;
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const { count: todayCount } = await supabase
-        .from("withdrawals")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", today.toISOString());
+      const todayCount = await fetchTodayWithdrawalsCount();
 
       setStats({
         totalProducts: totalCount,
         lowStockCount: lowStockCount,
-        todayWithdrawals: todayCount || 0,
+        todayWithdrawals: todayCount,
         criticalStock: criticalCount,
       });
     } catch (error) {
@@ -82,19 +89,10 @@ export default function Dashboard() {
     }
   };
 
-  const getStockStatus = (available: number, min: number) => {
-    if (available === 0) return { label: "Crítico", variant: "danger" as const };
-    if (available <= min) return { label: "Baixo", variant: "warning" as const };
-    if (available <= min * 1.5) return { label: "Atenção", variant: "warning" as const };
-    return { label: "Normal", variant: "success" as const };
-  };
-
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
+        <LoadingPage />
       </AppLayout>
     );
   }
@@ -102,73 +100,48 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-muted-foreground">Visão geral do sistema de EPIs</p>
-          </div>
-          <Button onClick={() => setWithdrawalDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Registrar Retirada
-          </Button>
-        </div>
+        <PageHeader
+          title="Dashboard"
+          description="Visão geral do sistema de EPIs"
+          actions={
+            <Button onClick={() => setWithdrawalDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Registrar Retirada
+            </Button>
+          }
+        />
 
-        {/* Stats Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalProducts}</div>
-              <p className="text-xs text-muted-foreground">
-                Produtos cadastrados
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Estoque Baixo</CardTitle>
-              <TrendingDown className="h-4 w-4 text-warning" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-warning">{stats.lowStockCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Necessitam reposição
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Crítico</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-danger" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-danger">{stats.criticalStock}</div>
-              <p className="text-xs text-muted-foreground">
-                Estoque zerado
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Retiradas Hoje</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.todayWithdrawals}</div>
-              <p className="text-xs text-muted-foreground">
-                Movimentações do dia
-              </p>
-            </CardContent>
-          </Card>
+          <StatsCard
+            title="Total de Produtos"
+            value={stats.totalProducts}
+            description="Produtos cadastrados"
+            icon={Package}
+          />
+          <StatsCard
+            title="Estoque Baixo"
+            value={stats.lowStockCount}
+            description="Necessitam reposição"
+            icon={TrendingDown}
+            iconClassName="text-warning"
+            valueClassName="text-warning"
+          />
+          <StatsCard
+            title="Crítico"
+            value={stats.criticalStock}
+            description="Estoque zerado"
+            icon={AlertTriangle}
+            iconClassName="text-danger"
+            valueClassName="text-danger"
+          />
+          <StatsCard
+            title="Retiradas Hoje"
+            value={stats.todayWithdrawals}
+            description="Movimentações do dia"
+            icon={Activity}
+          />
         </div>
 
-        {/* Low Stock Alert */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -184,7 +157,10 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-3">
                 {products.map((product) => {
-                  const status = getStockStatus(product.stock_available, product.min_stock);
+                  const status = getStockStatus(
+                    product.stock_available,
+                    product.min_stock
+                  );
                   return (
                     <div
                       key={product.id}
@@ -229,11 +205,10 @@ export default function Dashboard() {
         onOpenChange={setWithdrawalDialogOpen}
         onSuccess={fetchDashboardData}
       />
-      
-      {/* Footer with Settings and Credits */}
+
       <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
           onClick={() => navigate("/settings")}
         >
@@ -242,9 +217,9 @@ export default function Dashboard() {
         </Button>
         <p className="text-sm text-muted-foreground">
           Criado por:{" "}
-          <a 
-            href="https://www.linkedin.com/in/cesar-monteiro-030bb3170" 
-            target="_blank" 
+          <a
+            href="https://www.linkedin.com/in/cesar-monteiro-030bb3170"
+            target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
