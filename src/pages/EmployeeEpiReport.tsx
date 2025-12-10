@@ -3,16 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
+import { LoadingPage, LoadingInline } from "@/components/ui/loading";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, Search, User, TrendingDown, RotateCcw, Package } from "lucide-react";
+import { Download, User, TrendingDown, RotateCcw, Package } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { format } from "date-fns";
+import { getConditionLabel } from "@/utils/stock";
+import { formatDate } from "@/utils/formatters";
 
 interface Employee {
   id: string;
@@ -164,19 +169,6 @@ export default function EmployeeEpiReport() {
     s.employee.employee_id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formatDate = (date: string) => {
-    return format(new Date(date), "dd/MM/yyyy HH:mm");
-  };
-
-  const getConditionLabel = (condition: string | null) => {
-    const labels: Record<string, string> = {
-      bom: "Bom Estado",
-      danificado: "Danificado",
-      desgastado: "Desgastado",
-      vencido: "Vencido",
-    };
-    return labels[condition || ""] || condition;
-  };
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -316,15 +308,11 @@ export default function EmployeeEpiReport() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou matrícula..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Buscar por nome ou matrícula..."
+              />
               <Select value={selectedEmployee || "all"} onValueChange={(val) => setSelectedEmployee(val === "all" ? "" : val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos os funcionários" />

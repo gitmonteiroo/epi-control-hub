@@ -2,13 +2,35 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
+import { fetchEmployees, type Employee } from "@/services/employeeService";
+import { createReturn } from "@/services/movementService";
+import { EPI_CONDITIONS } from "@/utils/stock";
+import { supabase } from "@/integrations/supabase/client";
 
 const returnSchema = z.object({
   product_id: z.string().min(1, "Produto é obrigatório"),
@@ -19,12 +41,6 @@ const returnSchema = z.object({
 });
 
 type ReturnFormData = z.infer<typeof returnSchema>;
-
-interface Employee {
-  id: string;
-  full_name: string;
-  employee_id: string;
-}
 
 interface Product {
   id: string;
@@ -40,11 +56,15 @@ interface ReturnDialogProps {
   onSuccess?: () => void;
 }
 
-export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: ReturnDialogProps) {
+export function ReturnDialog({
+  open,
+  onOpenChange,
+  productId,
+  onSuccess,
+}: ReturnDialogProps) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const form = useForm<ReturnFormData>({
     resolver: zodResolver(returnSchema),
@@ -59,8 +79,7 @@ export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: Retur
 
   useEffect(() => {
     if (open) {
-      fetchEmployees();
-      fetchProducts();
+      loadData();
     }
   }, [open]);
 
@@ -68,33 +87,26 @@ export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: Retur
     if (productId) {
       form.setValue("product_id", productId);
     }
-  }, [productId]);
+  }, [productId, form]);
 
-  useEffect(() => {
-    const product = products.find(p => p.id === form.watch("product_id"));
-    setSelectedProduct(product || null);
-  }, [form.watch("product_id"), products]);
+  const loadData = async () => {
+    try {
+      const [employeesData, productsRes] = await Promise.all([
+        fetchEmployees(),
+        supabase.from("products").select("id, code, name, unit").order("name"),
+      ]);
 
-  const fetchEmployees = async () => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, employee_id")
-      .order("full_name");
-    setEmployees(data || []);
-  };
-
-  const fetchProducts = async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("id, code, name, unit")
-      .order("name");
-    setProducts(data || []);
+      setEmployees(employeesData);
+      setProducts(productsRes.data || []);
+    } catch (error) {
+      console.error("Error loading data:", error);
+    }
   };
 
   const onSubmit = async (data: ReturnFormData) => {
     setLoading(true);
     try {
-      const { error } = await supabase.from("returns").insert({
+      await createReturn({
         product_id: data.product_id,
         employee_id: data.employee_id,
         quantity: data.quantity,
@@ -102,14 +114,14 @@ export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: Retur
         condition: data.condition,
       });
 
-      if (error) throw error;
-
       toast.success("Devolução registrada com sucesso");
       form.reset();
       onOpenChange(false);
       onSuccess?.();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao registrar devolução");
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Erro ao registrar devolução";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -120,6 +132,9 @@ export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: Retur
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Registrar Devolução de EPI</DialogTitle>
+          <DialogDescription>
+            Preencha os dados para registrar uma devolução de equipamento.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -139,7 +154,8 @@ export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: Retur
                     <SelectContent>
                       {products.map((product) => (
                         <SelectItem key={product.id} value={product.id}>
-                          {product.code ? `[${product.code}] ` : ""}{product.name}
+                          {product.code ? `[${product.code}] ` : ""}
+                          {product.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -201,10 +217,14 @@ export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: Retur
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="bom">Bom Estado</SelectItem>
-                      <SelectItem value="danificado">Danificado</SelectItem>
-                      <SelectItem value="desgastado">Desgastado</SelectItem>
-                      <SelectItem value="vencido">Vencido</SelectItem>
+                      {EPI_CONDITIONS.map((condition) => (
+                        <SelectItem
+                          key={condition.value}
+                          value={condition.value}
+                        >
+                          {condition.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -219,7 +239,10 @@ export function ReturnDialog({ open, onOpenChange, productId, onSuccess }: Retur
                 <FormItem>
                   <FormLabel>Observação (Opcional)</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ex: Devolução por término de contrato" {...field} />
+                    <Input
+                      placeholder="Ex: Devolução por término de contrato"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

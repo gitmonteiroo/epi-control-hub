@@ -1,47 +1,35 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Edit, Package, TrendingDown, Plus, RotateCcw, Shield } from "lucide-react";
+import { LoadingPage } from "@/components/ui/loading";
+import {
+  ArrowLeft,
+  Edit,
+  Package,
+  TrendingDown,
+  Plus,
+  RotateCcw,
+  Shield,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
 import { ReturnDialog } from "@/components/products/ReturnDialog";
-
-interface Product {
-  id: string;
-  code: string | null;
-  name: string;
-  description: string | null;
-  stock_available: number;
-  min_stock: number;
-  unit: string;
-  ca_number: string | null;
-  size: string | null;
-  created_at: string;
-  updated_at: string;
-  categories: { id: string; name: string } | null;
-}
-
-interface Withdrawal {
-  id: string;
-  quantity: number;
-  reason: string | null;
-  created_at: string;
-  profiles: { full_name: string; employee_id: string } | null;
-}
-
-interface Return {
-  id: string;
-  quantity: number;
-  reason: string | null;
-  condition: string | null;
-  created_at: string;
-  profiles: { full_name: string; employee_id: string } | null;
-}
+import {
+  fetchProductById,
+  type Product,
+} from "@/services/productService";
+import {
+  fetchWithdrawalsByProduct,
+  fetchReturnsByProduct,
+  type Withdrawal,
+  type Return,
+} from "@/services/movementService";
+import { getStockStatus, getConditionLabel } from "@/utils/stock";
+import { formatDateShort } from "@/utils/formatters";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -60,34 +48,15 @@ export default function ProductDetail() {
 
   const fetchData = async () => {
     try {
-      const { data: productData, error: productError } = await supabase
-        .from("products")
-        .select("*, categories(id, name)")
-        .eq("id", id!)
-        .single();
+      const [productData, withdrawalsData, returnsData] = await Promise.all([
+        fetchProductById(id!),
+        fetchWithdrawalsByProduct(id!),
+        fetchReturnsByProduct(id!),
+      ]);
 
-      if (productError) throw productError;
       setProduct(productData);
-
-      const { data: withdrawalsData, error: withdrawalsError } = await supabase
-        .from("withdrawals")
-        .select("id, quantity, reason, created_at, profiles(full_name, employee_id)")
-        .eq("product_id", id!)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      if (withdrawalsError) throw withdrawalsError;
-      setWithdrawals(withdrawalsData || []);
-
-      const { data: returnsData, error: returnsError } = await supabase
-        .from("returns")
-        .select("id, quantity, reason, condition, created_at, profiles(full_name, employee_id)")
-        .eq("product_id", id!)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      if (returnsError) throw returnsError;
-      setReturns(returnsData || []);
+      setWithdrawals(withdrawalsData);
+      setReturns(returnsData);
     } catch (error) {
       console.error("Error fetching product:", error);
       toast.error("Erro ao carregar produto");
@@ -97,39 +66,10 @@ export default function ProductDetail() {
     }
   };
 
-  const getStockStatus = (available: number, min: number) => {
-    if (available === 0) return { label: "Crítico", variant: "danger" as const, color: "text-danger" };
-    if (available <= min) return { label: "Baixo", variant: "warning" as const, color: "text-warning" };
-    if (available <= min * 1.5) return { label: "Atenção", variant: "warning" as const, color: "text-warning" };
-    return { label: "Normal", variant: "success" as const, color: "text-success" };
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getConditionLabel = (condition: string | null) => {
-    const labels: Record<string, string> = {
-      bom: "Bom Estado",
-      danificado: "Danificado",
-      desgastado: "Desgastado",
-      vencido: "Vencido",
-    };
-    return labels[condition || ""] || condition;
-  };
-
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
+        <LoadingPage />
       </AppLayout>
     );
   }
@@ -145,12 +85,18 @@ export default function ProductDetail() {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="icon" onClick={() => navigate("/products")}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => navigate("/products")}
+            >
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold text-foreground">{product.name}</h1>
+                <h1 className="text-3xl font-bold text-foreground">
+                  {product.name}
+                </h1>
                 {product.code && (
                   <Badge variant="outline" className="font-mono">
                     {product.code}
@@ -172,7 +118,10 @@ export default function ProductDetail() {
               Registrar Retirada
             </Button>
             {isAdmin && (
-              <Button variant="outline" onClick={() => navigate(`/products/${id}/edit`)}>
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/products/${id}/edit`)}
+              >
                 <Edit className="mr-2 h-4 w-4" />
                 Editar
               </Button>
@@ -188,42 +137,64 @@ export default function ProductDetail() {
             <CardContent className="space-y-4">
               {product.code && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Código</p>
-                  <p className="text-lg font-semibold font-mono">{product.code}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Código
+                  </p>
+                  <p className="text-lg font-semibold font-mono">
+                    {product.code}
+                  </p>
                 </div>
               )}
               {product.ca_number && (
                 <div className="flex items-start gap-2">
                   <Shield className="h-5 w-5 text-primary mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">CA (Certificado de Aprovação)</p>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      CA (Certificado de Aprovação)
+                    </p>
                     <p className="text-lg font-semibold">{product.ca_number}</p>
                   </div>
                 </div>
               )}
               {product.size && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Tamanho</p>
-                  <Badge variant="secondary" className="text-base">{product.size}</Badge>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Tamanho
+                  </p>
+                  <Badge variant="secondary" className="text-base">
+                    {product.size}
+                  </Badge>
                 </div>
               )}
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Descrição</p>
-                <p className="text-base">{product.description || "Sem descrição"}</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Descrição
+                </p>
+                <p className="text-base">
+                  {product.description || "Sem descrição"}
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Unidade</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Unidade
+                  </p>
                   <p className="text-lg font-semibold">{product.unit}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Estoque Mínimo</p>
-                  <p className="text-lg font-semibold">{product.min_stock} {product.unit}</p>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Estoque Mínimo
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {product.min_stock} {product.unit}
+                  </p>
                 </div>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Cadastrado em</p>
-                <p className="text-sm">{formatDate(product.created_at)}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-2">
+                  Cadastrado em
+                </p>
+                <p className="text-sm">{formatDateShort(product.created_at)}</p>
               </div>
             </CardContent>
           </Card>
@@ -240,7 +211,9 @@ export default function ProductDetail() {
                 <div className="flex items-center gap-3 mb-2">
                   <p className="text-5xl font-bold">{product.stock_available}</p>
                   <div>
-                    <p className="text-sm text-muted-foreground">{product.unit}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {product.unit}
+                    </p>
                     <Badge variant={status.variant}>{status.label}</Badge>
                   </div>
                 </div>
@@ -254,7 +227,11 @@ export default function ProductDetail() {
                         : "bg-success"
                     }`}
                     style={{
-                      width: `${Math.min((product.stock_available / (product.min_stock * 2)) * 100, 100)}%`,
+                      width: `${Math.min(
+                        (product.stock_available / (product.min_stock * 2)) *
+                          100,
+                        100
+                      )}%`,
                     }}
                   />
                 </div>
@@ -263,7 +240,9 @@ export default function ProductDetail() {
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
                   <TrendingDown className="h-5 w-5 text-warning mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-warning">Atenção: Estoque Baixo</p>
+                    <p className="text-sm font-medium text-warning">
+                      Atenção: Estoque Baixo
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {product.stock_available === 0
                         ? "Produto sem estoque disponível"
@@ -298,7 +277,8 @@ export default function ProductDetail() {
                     >
                       <div className="flex-1">
                         <p className="font-medium">
-                          {withdrawal.profiles?.full_name || "Funcionário não encontrado"}
+                          {withdrawal.profiles?.full_name ||
+                            "Funcionário não encontrado"}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Mat: {withdrawal.profiles?.employee_id}
@@ -314,7 +294,7 @@ export default function ProductDetail() {
                           -{withdrawal.quantity} {product.unit}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDate(withdrawal.created_at)}
+                          {formatDateShort(withdrawal.created_at)}
                         </p>
                       </div>
                     </div>
@@ -345,7 +325,8 @@ export default function ProductDetail() {
                     >
                       <div className="flex-1">
                         <p className="font-medium">
-                          {returnItem.profiles?.full_name || "Funcionário não encontrado"}
+                          {returnItem.profiles?.full_name ||
+                            "Funcionário não encontrado"}
                         </p>
                         <p className="text-sm text-muted-foreground">
                           Mat: {returnItem.profiles?.employee_id}
@@ -364,7 +345,7 @@ export default function ProductDetail() {
                           +{returnItem.quantity} {product.unit}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {formatDate(returnItem.created_at)}
+                          {formatDateShort(returnItem.created_at)}
                         </p>
                       </div>
                     </div>
