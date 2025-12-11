@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StatsCard } from "@/components/ui/stats-card";
 import { LoadingPage } from "@/components/ui/loading";
 import { PageHeader } from "@/components/ui/page-header";
+import { StockIndicator } from "@/components/ui/stock-indicator";
 import {
   Package,
   AlertTriangle,
@@ -13,17 +14,17 @@ import {
   Activity,
   Plus,
   Settings,
+  ChevronRight,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
-import { fetchLowStockProducts } from "@/services/productService";
 import { fetchTodayWithdrawalsCount } from "@/services/movementService";
-import { getStockStatus } from "@/utils/stock";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Product {
   id: string;
   name: string;
+  code: string | null;
   stock_available: number;
   min_stock: number;
   unit: string;
@@ -57,7 +58,7 @@ export default function Dashboard() {
     try {
       const { data: allProducts, error: productsError } = await supabase
         .from("products")
-        .select("id, name, stock_available, min_stock, unit, categories(name)")
+        .select("id, name, code, stock_available, min_stock, unit, categories(name)")
         .order("stock_available", { ascending: true });
 
       if (productsError) throw productsError;
@@ -104,14 +105,14 @@ export default function Dashboard() {
           title="Dashboard"
           description="Visão geral do sistema de EPIs"
           actions={
-            <Button onClick={() => setWithdrawalDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button onClick={() => setWithdrawalDialogOpen(true)} size="lg">
+              <Plus className="mr-2 h-5 w-5" />
               Registrar Retirada
             </Button>
           }
         />
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatsCard
             title="Total de Produtos"
             value={stats.totalProducts}
@@ -139,57 +140,75 @@ export default function Dashboard() {
             value={stats.todayWithdrawals}
             description="Movimentações do dia"
             icon={Activity}
+            iconClassName="text-primary"
+            valueClassName="text-primary"
           />
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
               Alertas de Estoque
             </CardTitle>
+            <Button variant="outline" size="sm" onClick={() => navigate("/products")}>
+              Ver todos
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </Button>
           </CardHeader>
           <CardContent>
             {products.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Nenhum produto com estoque baixo no momento.
-              </p>
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <div className="h-12 w-12 rounded-full bg-success-muted flex items-center justify-center mb-3">
+                  <Package className="h-6 w-6 text-success" />
+                </div>
+                <p className="font-medium text-foreground">Tudo em ordem!</p>
+                <p className="text-sm text-muted-foreground">
+                  Nenhum produto com estoque baixo no momento.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {products.map((product) => {
-                  const status = getStockStatus(
-                    product.stock_available,
-                    product.min_stock
-                  );
+                  const isCritical = product.stock_available === 0;
+                  const isLow = product.stock_available <= product.min_stock;
+                  
                   return (
                     <div
                       key={product.id}
-                      className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-accent/50"
+                      className="group flex items-center justify-between rounded-xl border p-4 transition-all hover:shadow-md hover:border-primary/20 cursor-pointer"
+                      onClick={() => navigate(`/products/${product.id}`)}
                     >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">{product.name}</p>
-                          <Badge variant={status.variant}>{status.label}</Badge>
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                          isCritical ? "bg-danger-muted" : isLow ? "bg-warning-muted" : "bg-success-muted"
+                        }`}>
+                          <Package className={`h-5 w-5 ${
+                            isCritical ? "text-danger" : isLow ? "text-warning" : "text-success"
+                          }`} />
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {product.categories?.name || "Sem categoria"}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-medium truncate">{product.name}</p>
+                            {product.code && (
+                              <span className="text-xs font-mono text-muted-foreground">#{product.code}</span>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {product.categories?.name || "Sem categoria"}
+                          </p>
+                        </div>
                       </div>
+                      
                       <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="text-sm font-medium">
-                            {product.stock_available} {product.unit}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Mín: {product.min_stock} {product.unit}
-                          </p>
-                        </div>
-                        <Button
+                        <StockIndicator
+                          available={product.stock_available}
+                          minimum={product.min_stock}
+                          unit={product.unit}
+                          showIcon={true}
                           size="sm"
-                          onClick={() => navigate(`/products/${product.id}`)}
-                        >
-                          Ver Detalhes
-                        </Button>
+                        />
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
                   );
@@ -206,7 +225,7 @@ export default function Dashboard() {
         onSuccess={fetchDashboardData}
       />
 
-      <div className="mt-8 pt-6 border-t border-border flex items-center justify-between">
+      <div className="mt-8 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
         <Button
           variant="outline"
           size="sm"
@@ -221,7 +240,7 @@ export default function Dashboard() {
             href="https://www.linkedin.com/in/cesar-monteiro-030bb3170"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-primary hover:underline"
+            className="text-primary hover:underline font-medium"
           >
             Cesar Monteiro
           </a>

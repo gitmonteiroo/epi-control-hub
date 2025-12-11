@@ -7,7 +7,8 @@ import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingPage } from "@/components/ui/loading";
 import { PageHeader } from "@/components/ui/page-header";
-import { Plus, Package } from "lucide-react";
+import { StockIndicator, StockBar } from "@/components/ui/stock-indicator";
+import { Plus, Package, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   Select,
@@ -21,7 +22,6 @@ import {
   type ProductListItem,
 } from "@/services/productService";
 import { fetchCategories, type Category } from "@/services/categoryService";
-import { getStockStatus } from "@/utils/stock";
 
 export default function Products() {
   const [products, setProducts] = useState<ProductListItem[]>([]);
@@ -54,6 +54,7 @@ export default function Products() {
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
       product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory =
       categoryFilter === "all" || product.categories?.id === categoryFilter;
@@ -75,25 +76,25 @@ export default function Products() {
           title="Produtos"
           description="Gestão de produtos e EPIs"
           actions={
-            <Button onClick={() => navigate("/products/new")}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button onClick={() => navigate("/products/new")} size="lg">
+              <Plus className="mr-2 h-5 w-5" />
               Novo Produto
             </Button>
           }
         />
 
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="pt-5">
             <div className="flex flex-col sm:flex-row gap-4">
               <SearchInput
                 value={searchTerm}
                 onChange={setSearchTerm}
-                placeholder="Buscar produtos..."
+                placeholder="Buscar por nome, código..."
                 className="flex-1"
               />
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Categoria" />
+                <SelectTrigger className="w-full sm:w-[220px] h-11">
+                  <SelectValue placeholder="Todas categorias" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas Categorias</SelectItem>
@@ -108,7 +109,7 @@ export default function Products() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredProducts.length === 0 ? (
             <div className="col-span-full">
               <EmptyState
@@ -116,63 +117,85 @@ export default function Products() {
                 title="Nenhum produto encontrado"
                 description={
                   searchTerm || categoryFilter !== "all"
-                    ? "Tente ajustar os filtros"
-                    : "Cadastre seu primeiro produto"
+                    ? "Tente ajustar os filtros de busca"
+                    : "Cadastre seu primeiro produto para começar"
                 }
               />
             </div>
           ) : (
             filteredProducts.map((product) => {
-              const status = getStockStatus(
-                product.stock_available,
-                product.min_stock
-              );
+              const isCritical = product.stock_available === 0;
+              const isLow = product.stock_available <= product.min_stock;
+              
               return (
                 <Card
                   key={product.id}
-                  className="cursor-pointer transition-all hover:shadow-md"
+                  className="group card-interactive overflow-hidden"
                   onClick={() => navigate(`/products/${product.id}`)}
                 >
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">{product.name}</CardTitle>
+                  {/* Status bar no topo */}
+                  <div
+                    className={`h-1.5 w-full ${
+                      isCritical
+                        ? "bg-danger"
+                        : isLow
+                        ? "bg-warning"
+                        : "bg-success"
+                    }`}
+                  />
+                  
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-lg truncate group-hover:text-primary transition-colors">
+                          {product.name}
+                        </CardTitle>
                         {product.code && (
                           <p className="text-sm text-muted-foreground font-mono mt-1">
-                            Código: {product.code}
+                            #{product.code}
                           </p>
                         )}
                       </div>
-                      <Badge variant={status.variant}>{status.label}</Badge>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                     </div>
                     {product.categories && (
-                      <p className="text-sm text-muted-foreground">
+                      <Badge variant="secondary" className="w-fit mt-2">
                         {product.categories.name}
-                      </p>
+                      </Badge>
                     )}
                   </CardHeader>
-                  <CardContent>
+                  
+                  <CardContent className="space-y-4">
                     {product.description && (
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2">
                         {product.description}
                       </p>
                     )}
-                    <div className="flex items-center justify-between">
+                    
+                    <div className="flex items-end justify-between gap-4">
                       <div>
-                        <p className="text-2xl font-bold">
+                        <p className="text-xs text-muted-foreground mb-1">Disponível</p>
+                        <p className={`text-3xl font-bold ${
+                          isCritical ? "text-danger" : isLow ? "text-warning" : "text-success"
+                        }`}>
                           {product.stock_available}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {product.unit} disponíveis
+                          <span className="text-base font-normal text-muted-foreground ml-1">
+                            {product.unit}
+                          </span>
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Mínimo</p>
-                        <p className="text-lg font-semibold">
+                        <p className="text-xs text-muted-foreground mb-1">Mínimo</p>
+                        <p className="text-lg font-semibold text-muted-foreground">
                           {product.min_stock} {product.unit}
                         </p>
                       </div>
                     </div>
+                    
+                    <StockBar
+                      available={product.stock_available}
+                      minimum={product.min_stock}
+                    />
                   </CardContent>
                 </Card>
               );

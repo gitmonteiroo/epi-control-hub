@@ -17,21 +17,21 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-center justify-between flex-wrap gap-4", className)}>
-      <div className="flex items-center gap-3">
+    <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-4", className)}>
+      <div className="flex items-center gap-4">
         {Icon && (
-          <div className="p-2 rounded-lg bg-primary/10">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
             <Icon className="h-6 w-6 text-primary" />
           </div>
         )}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{title}</h1>
           {description && (
-            <p className="text-muted-foreground">{description}</p>
+            <p className="text-sm sm:text-base text-muted-foreground mt-0.5">{description}</p>
           )}
         </div>
       </div>
-      {actions && <div className="flex gap-2 flex-wrap">{actions}</div>}
+      {actions && <div className="flex gap-3 flex-wrap sm:shrink-0">{actions}</div>}
     </div>
   );
 }
