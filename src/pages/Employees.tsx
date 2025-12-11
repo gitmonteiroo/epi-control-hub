@@ -4,11 +4,32 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { EmployeeForm } from "@/components/employees/EmployeeForm";
-import { Users, Plus, Edit, Trash2 } from "lucide-react";
+import { LoadingPage } from "@/components/ui/loading";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { SearchInput } from "@/components/ui/search-input";
+import { Users, Plus, Edit, Trash2, Mail, Phone, Building2, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Employee {
   id: string;
@@ -30,6 +51,7 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<string | undefined>();
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,12 +105,17 @@ export default function Employees() {
     fetchEmployees();
   };
 
+  const filteredEmployees = employees.filter(
+    (employee) =>
+      employee.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.employee_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
+        <LoadingPage />
       </AppLayout>
     );
   }
@@ -96,62 +123,85 @@ export default function Employees() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Funcionários</h1>
-            <p className="text-muted-foreground">Gestão de funcionários do sistema</p>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditingEmployee(undefined)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Funcionário
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingEmployee ? "Editar Funcionário" : "Novo Funcionário"}
-                </DialogTitle>
-              </DialogHeader>
-              <EmployeeForm
-                employeeId={editingEmployee}
-                onSuccess={handleFormSuccess}
-                onCancel={() => setDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <PageHeader
+          title="Funcionários"
+          description="Gestão de funcionários do sistema"
+          actions={
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="lg" onClick={() => setEditingEmployee(undefined)}>
+                  <Plus className="mr-2 h-5 w-5" />
+                  Novo Funcionário
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingEmployee ? "Editar Funcionário" : "Novo Funcionário"}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingEmployee
+                      ? "Atualize as informações do funcionário"
+                      : "Preencha os dados para cadastrar um novo funcionário"}
+                  </DialogDescription>
+                </DialogHeader>
+                <EmployeeForm
+                  employeeId={editingEmployee}
+                  onSuccess={handleFormSuccess}
+                  onCancel={() => setDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          }
+        />
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {employees.length === 0 ? (
-            <Card className="col-span-full">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Users className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">Nenhum funcionário cadastrado</p>
-              </CardContent>
-            </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <SearchInput
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Buscar por nome, matrícula ou email..."
+              className="max-w-md"
+            />
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredEmployees.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                icon={<Users className="h-12 w-12 text-muted-foreground mb-4" />}
+                title={searchTerm ? "Nenhum funcionário encontrado" : "Nenhum funcionário cadastrado"}
+                description={
+                  searchTerm
+                    ? "Tente ajustar os termos de busca"
+                    : "Cadastre seu primeiro funcionário para começar"
+                }
+              />
+            </div>
           ) : (
-            employees.map((employee) => (
-              <Card key={employee.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg">{employee.full_name}</CardTitle>
-                      <Badge 
-                        variant={employee.status === "ativo" ? "default" : "secondary"}
-                        className="mt-1"
-                      >
-                        {employee.status === "ativo" ? "Ativo" : "Inativo"}
-                      </Badge>
+            filteredEmployees.map((employee) => (
+              <Card key={employee.id} className="group overflow-hidden">
+                <div
+                  className={`h-1.5 w-full ${
+                    employee.status === "ativo" ? "bg-success" : "bg-muted"
+                  }`}
+                />
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg truncate">
+                        {employee.full_name}
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground font-mono mt-1">
+                        Mat: {employee.employee_id}
+                      </p>
                     </div>
-                    <div className="flex gap-2">
-                      <Badge variant={employee.role === "admin" ? "default" : "secondary"}>
-                        {employee.role}
-                      </Badge>
+                    <div className="flex items-center gap-1">
                       <Button
                         size="icon"
                         variant="ghost"
+                        className="h-8 w-8"
                         onClick={() => {
                           setEditingEmployee(employee.id);
                           setDialogOpen(true);
@@ -161,7 +211,7 @@ export default function Employees() {
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost">
+                          <Button size="icon" variant="ghost" className="h-8 w-8">
                             <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>
@@ -169,12 +219,17 @@ export default function Employees() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Tem certeza que deseja remover o funcionário {employee.full_name}? Esta ação não pode ser desfeita.
+                              Tem certeza que deseja remover o funcionário{" "}
+                              <strong>{employee.full_name}</strong>? Esta ação não
+                              pode ser desfeita.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDelete(employee.id)}>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(employee.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
                               Remover
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -182,36 +237,56 @@ export default function Employees() {
                       </AlertDialog>
                     </div>
                   </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge
+                      variant={employee.status === "ativo" ? "success" : "secondary"}
+                    >
+                      {employee.status === "ativo" ? "Ativo" : "Inativo"}
+                    </Badge>
+                    <Badge variant={employee.role === "admin" ? "default" : "outline"}>
+                      {employee.role === "admin" ? "Admin" : "Operador"}
+                    </Badge>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm"><strong>Matrícula:</strong> {employee.employee_id}</p>
-                      <p className="text-sm"><strong>Email:</strong> {employee.email}</p>
-                      {employee.phone && (
-                        <p className="text-sm"><strong>Telefone:</strong> {employee.phone}</p>
-                      )}
+                <CardContent className="space-y-3">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Mail className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{employee.email}</span>
                     </div>
-                    <div>
-                      {employee.department && (
-                        <p className="text-sm"><strong>Setor:</strong> {employee.department}</p>
-                      )}
-                      {employee.position && (
-                        <p className="text-sm"><strong>Cargo:</strong> {employee.position}</p>
-                      )}
-                      {employee.job_function && (
-                        <p className="text-sm"><strong>Função:</strong> {employee.job_function}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="pt-2 border-t flex gap-4">
-                    {employee.badge_number && (
-                      <p className="text-sm"><strong>Crachá:</strong> {employee.badge_number}</p>
+                    {employee.phone && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Phone className="h-4 w-4 shrink-0" />
+                        <span>{employee.phone}</span>
+                      </div>
                     )}
-                    {employee.hire_date && (
-                      <p className="text-sm"><strong>Admissão:</strong> {new Date(employee.hire_date).toLocaleDateString('pt-BR')}</p>
+                    {employee.department && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Building2 className="h-4 w-4 shrink-0" />
+                        <span>{employee.department}</span>
+                      </div>
+                    )}
+                    {(employee.position || employee.job_function) && (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Briefcase className="h-4 w-4 shrink-0" />
+                        <span>{employee.position || employee.job_function}</span>
+                      </div>
                     )}
                   </div>
+                  
+                  {(employee.badge_number || employee.hire_date) && (
+                    <div className="pt-3 border-t border-border flex items-center gap-4 text-xs text-muted-foreground">
+                      {employee.badge_number && (
+                        <span>Crachá: {employee.badge_number}</span>
+                      )}
+                      {employee.hire_date && (
+                        <span>
+                          Admissão:{" "}
+                          {new Date(employee.hire_date).toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))
