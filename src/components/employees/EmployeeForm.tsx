@@ -132,10 +132,25 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
           description: "Funcionário atualizado com sucesso",
         });
       } else {
+        // Gerar senha temporária segura e aleatória
+        const generateSecurePassword = (): string => {
+          const length = 16;
+          const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+          const array = new Uint8Array(length);
+          crypto.getRandomValues(array);
+          let password = "";
+          for (let i = 0; i < length; i++) {
+            password += charset[array[i] % charset.length];
+          }
+          return password;
+        };
+
+        const tempPassword = generateSecurePassword();
+
         // Para criar novo funcionário, precisamos primeiro criar o usuário no Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: values.email,
-          password: values.employee_id, // Senha temporária = matrícula
+          password: tempPassword,
           options: {
             data: {
               full_name: values.full_name,
@@ -172,8 +187,9 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
         });
 
         toast({
-          title: "Sucesso",
-          description: "Funcionário criado com sucesso. Senha temporária: matrícula do funcionário",
+          title: "Funcionário criado com sucesso",
+          description: `Senha temporária: ${tempPassword} - Anote e entregue ao funcionário de forma segura.`,
+          duration: 15000, // Manter visível por mais tempo para o admin copiar
         });
       }
 
