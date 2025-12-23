@@ -153,14 +153,14 @@ export default function Audit() {
                   Usuário
                 </Label>
                 <Select
-                  value={filters.userId}
-                  onValueChange={(value) => setFilters({ ...filters, userId: value })}
+                  value={filters.userId || "all"}
+                  onValueChange={(value) => setFilters({ ...filters, userId: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="all">Todos</SelectItem>
                     {users?.map((user) => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.full_name}
@@ -176,14 +176,14 @@ export default function Audit() {
                   Ação
                 </Label>
                 <Select
-                  value={filters.acao}
-                  onValueChange={(value) => setFilters({ ...filters, acao: value })}
+                  value={filters.acao || "all"}
+                  onValueChange={(value) => setFilters({ ...filters, acao: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                     {actions?.map((action) => (
                       <SelectItem key={action} value={action}>
                         {action}
@@ -196,14 +196,14 @@ export default function Audit() {
               <div className="space-y-2">
                 <Label>Entidade</Label>
                 <Select
-                  value={filters.entidade}
-                  onValueChange={(value) => setFilters({ ...filters, entidade: value })}
+                  value={filters.entidade || "all"}
+                  onValueChange={(value) => setFilters({ ...filters, entidade: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas</SelectItem>
+                    <SelectItem value="all">Todas</SelectItem>
                     {entities?.map((entity) => (
                       <SelectItem key={entity} value={entity}>
                         {entity}
