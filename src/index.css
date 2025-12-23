@@ -128,10 +128,33 @@ All colors MUST be HSL.
 @layer base {
   * {
     @apply border-border;
+    /* Improve touch experience */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    /* Prevent font scaling in landscape on iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Smooth scroll behavior */
+    scroll-behavior: smooth;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
+    /* Prevent pull-to-refresh on mobile */
+    overscroll-behavior-y: contain;
+  }
+
+  /* Improve input appearance on mobile */
+  input, textarea, select {
+    @apply text-base;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  @media (min-width: 640px) {
+    input, textarea, select {
+      @apply text-sm;
+    }
   }
 }
 

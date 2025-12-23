@@ -12,8 +12,11 @@ import {
   Settings,
   ShieldCheck,
   ScrollText,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface NavItem {
   title: string;
@@ -85,7 +88,12 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin, canManage } = useAuth();
 
   const filteredNavItems = navItems.filter((item) => {
@@ -94,27 +102,68 @@ export function Sidebar() {
     return true;
   });
 
+  const handleNavClick = () => {
+    // Close sidebar on mobile after navigation
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-border bg-card">
-      <nav className="flex h-full flex-col gap-2 p-4">
-        {filteredNavItems.map((item) => (
-          <NavLink
-            key={item.href}
-            to={item.href}
-            className={({ isActive }) =>
-              cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )
-            }
-          >
-            <item.icon className="h-5 w-5" />
-            {item.title}
-          </NavLink>
-        ))}
-      </nav>
-    </aside>
+    <>
+      {/* Mobile overlay */}
+      {open && (
+        <div 
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "fixed left-0 top-0 z-50 h-full w-72 border-r border-border bg-card transition-transform duration-300 ease-in-out lg:top-16 lg:z-40 lg:h-[calc(100vh-4rem)] lg:w-64 lg:translate-x-0",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        {/* Mobile header */}
+        <div className="flex h-16 items-center justify-between border-b border-border px-4 lg:hidden">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <span className="text-sm font-bold text-primary-foreground">EPI</span>
+            </div>
+            <span className="font-semibold text-foreground">Menu</span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10">
+            <X className="h-5 w-5" />
+            <span className="sr-only">Fechar menu</span>
+          </Button>
+        </div>
+
+        <ScrollArea className="h-[calc(100%-4rem)] lg:h-full">
+          <nav className="flex flex-col gap-1 p-4">
+            {filteredNavItems.map((item) => (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                onClick={handleNavClick}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors touch-manipulation",
+                    "min-h-[48px]", // Minimum touch target size
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent"
+                  )
+                }
+              >
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span className="truncate">{item.title}</span>
+              </NavLink>
+            ))}
+          </nav>
+        </ScrollArea>
+      </aside>
+    </>
   );
 }
