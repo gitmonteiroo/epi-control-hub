@@ -14,6 +14,7 @@ import ProductDetail from "./pages/ProductDetail";
 import ProductForm from "./pages/ProductForm";
 import Categories from "./pages/Categories";
 import Employees from "./pages/Employees";
+import Users from "./pages/Users";
 import Withdrawals from "./pages/Withdrawals";
 import Movements from "./pages/Movements";
 import Reports from "./pages/Reports";
@@ -41,6 +42,7 @@ const App = () => (
                 <Route path="/products/:id/edit" element={<ProtectedRoute><ProductForm /></ProtectedRoute>} />
                 <Route path="/categories" element={<ProtectedRoute adminOnly><Categories /></ProtectedRoute>} />
                 <Route path="/employees" element={<ProtectedRoute adminOnly><Employees /></ProtectedRoute>} />
+                <Route path="/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
                 <Route path="/withdrawals" element={<ProtectedRoute><Withdrawals /></ProtectedRoute>} />
                 <Route path="/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
                 <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

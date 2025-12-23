@@ -10,6 +10,7 @@ import {
   ArrowLeftRight,
   UserCheck,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -18,6 +19,7 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   adminOnly?: boolean;
+  superAdminOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -42,6 +44,12 @@ const navItems: NavItem[] = [
     href: "/employees",
     icon: Users,
     adminOnly: true,
+  },
+  {
+    title: "Usuários",
+    href: "/users",
+    icon: ShieldCheck,
+    superAdminOnly: true,
   },
   {
     title: "Retiradas",
@@ -73,9 +81,11 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const { isAdmin, canManage } = useAuth();
 
-  const filteredNavItems = navItems.filter(
-    (item) => !item.adminOnly || canManage
-  );
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.superAdminOnly) return isAdmin;
+    if (item.adminOnly) return canManage;
+    return true;
+  });
 
   return (
     <aside className="fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-border bg-card">
