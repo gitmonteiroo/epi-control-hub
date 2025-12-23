@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,64 +8,180 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Settings as SettingsIcon, Bell, Package, Palette, Save } from "lucide-react";
+import { Settings as SettingsIcon, Bell, Package, Palette, Save, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
-interface SystemSettings {
-  defaultMinStock: number;
-  criticalStockThreshold: number;
-  lowStockNotifications: boolean;
-  criticalStockNotifications: boolean;
-  withdrawalNotifications: boolean;
-  emailNotifications: boolean;
-  theme: "light" | "dark" | "system";
-  itemsPerPage: number;
+interface UserSettings {
+  default_min_stock: number;
+  critical_stock_threshold: number;
+  low_stock_notifications: boolean;
+  critical_stock_notifications: boolean;
+  withdrawal_notifications: boolean;
+  email_notifications: boolean;
+  theme: string;
+  items_per_page: number;
 }
 
-const defaultSettings: SystemSettings = {
-  defaultMinStock: 5,
-  criticalStockThreshold: 0,
-  lowStockNotifications: true,
-  criticalStockNotifications: true,
-  withdrawalNotifications: false,
-  emailNotifications: false,
+const defaultSettings: UserSettings = {
+  default_min_stock: 5,
+  critical_stock_threshold: 0,
+  low_stock_notifications: true,
+  critical_stock_notifications: true,
+  withdrawal_notifications: false,
+  email_notifications: false,
   theme: "light",
-  itemsPerPage: 10,
+  items_per_page: 10,
 };
 
 export default function Settings() {
-  const { profile, canManage } = useAuth();
-  const [settings, setSettings] = useState<SystemSettings>(() => {
-    const saved = localStorage.getItem("system-settings");
-    return saved ? JSON.parse(saved) : defaultSettings;
-  });
+  const { user, profile, canManage } = useAuth();
+  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasSettings, setHasSettings] = useState(false);
 
-  const handleSave = () => {
+  useEffect(() => {
+    if (user) {
+      fetchSettings();
+    }
+  }, [user]);
+
+  const fetchSettings = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("user_settings")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setSettings({
+          default_min_stock: data.default_min_stock,
+          critical_stock_threshold: data.critical_stock_threshold,
+          low_stock_notifications: data.low_stock_notifications,
+          critical_stock_notifications: data.critical_stock_notifications,
+          withdrawal_notifications: data.withdrawal_notifications,
+          email_notifications: data.email_notifications,
+          theme: data.theme,
+          items_per_page: data.items_per_page,
+        });
+        setHasSettings(true);
+      } else {
+        setSettings(defaultSettings);
+        setHasSettings(false);
+      }
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      toast.error("Erro ao carregar configurações");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+    
     setIsSaving(true);
     try {
-      localStorage.setItem("system-settings", JSON.stringify(settings));
+      if (hasSettings) {
+        const { error } = await supabase
+          .from("user_settings")
+          .update({
+            ...settings,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("user_settings")
+          .insert({
+            user_id: user.id,
+            ...settings,
+          });
+
+        if (error) throw error;
+        setHasSettings(true);
+      }
+
       toast.success("Configurações salvas com sucesso!");
     } catch (error) {
+      console.error("Error saving settings:", error);
       toast.error("Erro ao salvar configurações");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleReset = () => {
-    setSettings(defaultSettings);
-    localStorage.removeItem("system-settings");
-    toast.info("Configurações restauradas para o padrão");
+  const handleReset = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      if (hasSettings) {
+        const { error } = await supabase
+          .from("user_settings")
+          .update({
+            ...defaultSettings,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+      }
+
+      setSettings(defaultSettings);
+      toast.info("Configurações restauradas para o padrão");
+    } catch (error) {
+      console.error("Error resetting settings:", error);
+      toast.error("Erro ao restaurar configurações");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const updateSetting = <K extends keyof SystemSettings>(
+  const updateSetting = <K extends keyof UserSettings>(
     key: K,
-    value: SystemSettings[K]
+    value: UserSettings[K]
   ) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="space-y-6">
+          <PageHeader
+            title="Configurações"
+            description="Gerencie as preferências do sistema"
+          />
+          <div className="grid gap-6 lg:grid-cols-2">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-60" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -96,9 +212,9 @@ export default function Settings() {
                   id="defaultMinStock"
                   type="number"
                   min={0}
-                  value={settings.defaultMinStock}
+                  value={settings.default_min_stock}
                   onChange={(e) =>
-                    updateSetting("defaultMinStock", parseInt(e.target.value) || 0)
+                    updateSetting("default_min_stock", parseInt(e.target.value) || 0)
                   }
                   disabled={!canManage}
                 />
@@ -115,10 +231,10 @@ export default function Settings() {
                   id="criticalThreshold"
                   type="number"
                   min={0}
-                  value={settings.criticalStockThreshold}
+                  value={settings.critical_stock_threshold}
                   onChange={(e) =>
                     updateSetting(
-                      "criticalStockThreshold",
+                      "critical_stock_threshold",
                       parseInt(e.target.value) || 0
                     )
                   }
@@ -151,9 +267,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.lowStockNotifications}
+                  checked={settings.low_stock_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("lowStockNotifications", checked)
+                    updateSetting("low_stock_notifications", checked)
                   }
                 />
               </div>
@@ -168,9 +284,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.criticalStockNotifications}
+                  checked={settings.critical_stock_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("criticalStockNotifications", checked)
+                    updateSetting("critical_stock_notifications", checked)
                   }
                 />
               </div>
@@ -185,9 +301,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.withdrawalNotifications}
+                  checked={settings.withdrawal_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("withdrawalNotifications", checked)
+                    updateSetting("withdrawal_notifications", checked)
                   }
                 />
               </div>
@@ -202,9 +318,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.emailNotifications}
+                  checked={settings.email_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("emailNotifications", checked)
+                    updateSetting("email_notifications", checked)
                   }
                   disabled
                 />
@@ -228,9 +344,7 @@ export default function Settings() {
                 <Label htmlFor="theme">Tema</Label>
                 <Select
                   value={settings.theme}
-                  onValueChange={(value: "light" | "dark" | "system") =>
-                    updateSetting("theme", value)
-                  }
+                  onValueChange={(value) => updateSetting("theme", value)}
                   disabled
                 >
                   <SelectTrigger id="theme">
@@ -250,9 +364,9 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label htmlFor="itemsPerPage">Itens por página</Label>
                 <Select
-                  value={settings.itemsPerPage.toString()}
+                  value={settings.items_per_page.toString()}
                   onValueChange={(value) =>
-                    updateSetting("itemsPerPage", parseInt(value))
+                    updateSetting("items_per_page", parseInt(value))
                   }
                 >
                   <SelectTrigger id="itemsPerPage">
@@ -313,11 +427,15 @@ export default function Settings() {
 
         {/* Ações */}
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button variant="outline" onClick={handleReset}>
+          <Button variant="outline" onClick={handleReset} disabled={isSaving}>
             Restaurar Padrão
           </Button>
           <Button onClick={handleSave} disabled={isSaving}>
-            <Save className="mr-2 h-4 w-4" />
+            {isSaving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
             {isSaving ? "Salvando..." : "Salvar Configurações"}
           </Button>
         </div>

@@ -232,6 +232,51 @@ export type Database = {
           },
         ]
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          critical_stock_notifications: boolean
+          critical_stock_threshold: number
+          default_min_stock: number
+          email_notifications: boolean
+          id: string
+          items_per_page: number
+          low_stock_notifications: boolean
+          theme: string
+          updated_at: string
+          user_id: string
+          withdrawal_notifications: boolean
+        }
+        Insert: {
+          created_at?: string
+          critical_stock_notifications?: boolean
+          critical_stock_threshold?: number
+          default_min_stock?: number
+          email_notifications?: boolean
+          id?: string
+          items_per_page?: number
+          low_stock_notifications?: boolean
+          theme?: string
+          updated_at?: string
+          user_id: string
+          withdrawal_notifications?: boolean
+        }
+        Update: {
+          created_at?: string
+          critical_stock_notifications?: boolean
+          critical_stock_threshold?: number
+          default_min_stock?: number
+          email_notifications?: boolean
+          id?: string
+          items_per_page?: number
+          low_stock_notifications?: boolean
+          theme?: string
+          updated_at?: string
+          user_id?: string
+          withdrawal_notifications?: boolean
+        }
+        Relationships: []
+      }
       withdrawals: {
         Row: {
           created_at: string
