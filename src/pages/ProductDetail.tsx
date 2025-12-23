@@ -34,7 +34,7 @@ import { formatDateShort } from "@/utils/formatters";
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { canManage } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [returns, setReturns] = useState<Return[]>([]);
@@ -117,7 +117,7 @@ export default function ProductDetail() {
               <Plus className="mr-2 h-4 w-4" />
               Registrar Retirada
             </Button>
-            {isAdmin && (
+            {canManage && (
               <Button
                 variant="outline"
                 onClick={() => navigate(`/products/${id}/edit`)}

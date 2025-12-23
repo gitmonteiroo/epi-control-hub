@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit, Trash2, FolderTree } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ export default function Categories() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({ name: "", description: "", color: "#6366f1" });
   const [saving, setSaving] = useState(false);
+  const { canManage, isAdmin } = useAuth();
 
   useEffect(() => {
     fetchCategories();
@@ -156,10 +158,12 @@ export default function Categories() {
             <h1 className="text-3xl font-bold text-foreground">Categorias</h1>
             <p className="text-muted-foreground">Organize seus produtos por categoria</p>
           </div>
-          <Button onClick={openNewDialog}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Categoria
-          </Button>
+          {canManage && (
+            <Button onClick={openNewDialog}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Categoria
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -169,12 +173,14 @@ export default function Categories() {
                 <FolderTree className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium">Nenhuma categoria cadastrada</p>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Cadastre sua primeira categoria
+                  {canManage ? "Cadastre sua primeira categoria" : "Nenhuma categoria disponível"}
                 </p>
-                <Button onClick={openNewDialog}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova Categoria
-                </Button>
+                {canManage && (
+                  <Button onClick={openNewDialog}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova Categoria
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -189,25 +195,29 @@ export default function Categories() {
                       />
                       <span className="text-lg">{category.name}</span>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => openEditDialog(category)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedCategory(category);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-danger" />
-                      </Button>
-                    </div>
+                    {canManage && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          onClick={() => openEditDialog(category)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedCategory(category);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-danger" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

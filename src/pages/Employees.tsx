@@ -19,6 +19,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
 import { Users, Plus, Edit, Trash2, Mail, Phone, Building2, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +54,7 @@ export default function Employees() {
   const [editingEmployee, setEditingEmployee] = useState<string | undefined>();
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+  const { canManage, isAdmin } = useAuth();
 
   useEffect(() => {
     fetchEmployees();
@@ -127,31 +129,33 @@ export default function Employees() {
           title="Funcionários"
           description="Gestão de funcionários do sistema"
           actions={
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="lg" onClick={() => setEditingEmployee(undefined)}>
-                  <Plus className="mr-2 h-5 w-5" />
-                  Novo Funcionário
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>
-                    {editingEmployee ? "Editar Funcionário" : "Novo Funcionário"}
-                  </DialogTitle>
-                  <DialogDescription>
-                    {editingEmployee
-                      ? "Atualize as informações do funcionário"
-                      : "Preencha os dados para cadastrar um novo funcionário"}
-                  </DialogDescription>
-                </DialogHeader>
-                <EmployeeForm
-                  employeeId={editingEmployee}
-                  onSuccess={handleFormSuccess}
-                  onCancel={() => setDialogOpen(false)}
-                />
-              </DialogContent>
-            </Dialog>
+            canManage ? (
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="lg" onClick={() => setEditingEmployee(undefined)}>
+                    <Plus className="mr-2 h-5 w-5" />
+                    Novo Funcionário
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>
+                      {editingEmployee ? "Editar Funcionário" : "Novo Funcionário"}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {editingEmployee
+                        ? "Atualize as informações do funcionário"
+                        : "Preencha os dados para cadastrar um novo funcionário"}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <EmployeeForm
+                    employeeId={editingEmployee}
+                    onSuccess={handleFormSuccess}
+                    onCancel={() => setDialogOpen(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            ) : undefined
           }
         />
 
@@ -197,45 +201,49 @@ export default function Employees() {
                         Mat: {employee.employee_id}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setEditingEmployee(employee.id);
-                          setDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button size="icon" variant="ghost" className="h-8 w-8">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Tem certeza que deseja remover o funcionário{" "}
-                              <strong>{employee.full_name}</strong>? Esta ação não
-                              pode ser desfeita.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(employee.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Remover
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
+                    {canManage && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditingEmployee(employee.id);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        {isAdmin && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-8 w-8">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja remover o funcionário{" "}
+                                  <strong>{employee.full_name}</strong>? Esta ação não
+                                  pode ser desfeita.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(employee.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Remover
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <Badge
