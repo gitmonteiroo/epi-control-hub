@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Settings as SettingsIcon, Bell, Package, Palette, Save, Loader2 } from "lucide-react";
+import { Settings as SettingsIcon, Bell, Package, Palette, Save, Loader2, Sun, Moon, Monitor } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UserSettings {
@@ -38,6 +39,7 @@ const defaultSettings: UserSettings = {
 
 export default function Settings() {
   const { user, profile, canManage } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -340,26 +342,40 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="theme">Tema</Label>
-                <Select
-                  value={settings.theme}
-                  onValueChange={(value) => updateSetting("theme", value)}
-                  disabled
-                >
-                  <SelectTrigger id="theme">
-                    <SelectValue placeholder="Selecione o tema" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">Claro</SelectItem>
-                    <SelectItem value="dark">Escuro</SelectItem>
-                    <SelectItem value="system">Sistema</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-3">
+                <Label>Tema</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant={theme === "light" ? "default" : "outline"}
+                    className="flex flex-col gap-1 h-auto py-3"
+                    onClick={() => setTheme("light")}
+                  >
+                    <Sun className="h-5 w-5" />
+                    <span className="text-xs">Claro</span>
+                  </Button>
+                  <Button
+                    variant={theme === "dark" ? "default" : "outline"}
+                    className="flex flex-col gap-1 h-auto py-3"
+                    onClick={() => setTheme("dark")}
+                  >
+                    <Moon className="h-5 w-5" />
+                    <span className="text-xs">Escuro</span>
+                  </Button>
+                  <Button
+                    variant={theme === "system" ? "default" : "outline"}
+                    className="flex flex-col gap-1 h-auto py-3"
+                    onClick={() => setTheme("system")}
+                  >
+                    <Monitor className="h-5 w-5" />
+                    <span className="text-xs">Sistema</span>
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  Em breve: suporte a tema escuro
+                  Escolha entre tema claro, escuro ou siga as preferências do sistema
                 </p>
               </div>
+
+              <Separator />
 
               <div className="space-y-2">
                 <Label htmlFor="itemsPerPage">Itens por página</Label>
