@@ -131,7 +131,7 @@ export default function Employees() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <PageHeader
           title="Funcionários"
           description="Gestão de funcionários do sistema"
@@ -139,12 +139,13 @@ export default function Employees() {
             canManage ? (
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="lg" onClick={() => setEditingEmployee(undefined)}>
-                    <Plus className="mr-2 h-5 w-5" />
-                    Novo Funcionário
+                  <Button size="default" className="w-full sm:w-auto" onClick={() => setEditingEmployee(undefined)}>
+                    <Plus className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+                    <span className="sm:hidden">Novo</span>
+                    <span className="hidden sm:inline">Novo Funcionário</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-h-[90vh] w-[95vw] max-w-3xl overflow-y-auto sm:w-full">
                   <DialogHeader>
                     <DialogTitle>
                       {editingEmployee ? "Editar Funcionário" : "Novo Funcionário"}
@@ -167,17 +168,17 @@ export default function Employees() {
         />
 
         <Card>
-          <CardContent className="pt-5">
+          <CardContent className="p-3 sm:pt-5 sm:px-6">
             <SearchInput
               value={searchTerm}
               onChange={setSearchTerm}
               placeholder="Buscar por nome, matrícula ou email..."
-              className="max-w-md"
+              className="w-full sm:max-w-md"
             />
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredEmployees.length === 0 ? (
             <div className="col-span-full">
               <EmptyState
