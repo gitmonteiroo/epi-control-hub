@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StockIndicator, StockBar } from "@/components/ui/stock-indicator";
 import { Plus, Package, ChevronRight, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,7 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<StockStatusFilter>("all");
   const navigate = useNavigate();
+  const { canManage } = useAuth();
 
   useEffect(() => {
     fetchData();
@@ -94,10 +96,12 @@ export default function Products() {
           title="Produtos"
           description="Gestão de produtos e EPIs"
           actions={
-            <Button onClick={() => navigate("/products/new")} size="lg">
-              <Plus className="mr-2 h-5 w-5" />
-              Novo Produto
-            </Button>
+            canManage ? (
+              <Button onClick={() => navigate("/products/new")} size="lg">
+                <Plus className="mr-2 h-5 w-5" />
+                Novo Produto
+              </Button>
+            ) : undefined
           }
         />
 

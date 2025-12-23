@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MovementForm } from "@/components/movements/MovementForm";
 import { Package, Plus, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Movement {
   id: string;
@@ -29,6 +30,7 @@ export default function Movements() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { canManage } = useAuth();
 
   useEffect(() => {
     fetchMovements();
@@ -82,23 +84,25 @@ export default function Movements() {
             <h1 className="text-3xl font-bold">Movimentações</h1>
             <p className="text-muted-foreground">Histórico de entradas e saídas de estoque</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Registrar Entrada
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Registrar Entrada de Estoque</DialogTitle>
-              </DialogHeader>
-              <MovementForm
-                onSuccess={handleFormSuccess}
-                onCancel={() => setDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
+          {canManage && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Registrar Entrada
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Registrar Entrada de Estoque</DialogTitle>
+                </DialogHeader>
+                <MovementForm
+                  onSuccess={handleFormSuccess}
+                  onCancel={() => setDialogOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
         </div>
 
         <Card>

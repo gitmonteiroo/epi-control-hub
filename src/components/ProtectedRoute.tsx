@@ -1,5 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { AccessDenied } from "@/components/AccessDenied";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -7,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, adminOnly = false }: ProtectedRouteProps) {
-  const { user, profile, loading } = useAuth();
+  const { user, loading, canManage } = useAuth();
 
   if (loading) {
     return (
@@ -21,8 +23,12 @@ export function ProtectedRoute({ children, adminOnly = false }: ProtectedRoutePr
     return <Navigate to="/auth" replace />;
   }
 
-  if (adminOnly && profile?.role !== "admin") {
-    return <Navigate to="/" replace />;
+  if (adminOnly && !canManage) {
+    return (
+      <AppLayout>
+        <AccessDenied />
+      </AppLayout>
+    );
   }
 
   return <>{children}</>;
