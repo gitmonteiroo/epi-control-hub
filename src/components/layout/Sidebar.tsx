@@ -65,10 +65,10 @@ const navItems: NavItem[] = [
 ];
 
 export function Sidebar() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, canManage } = useAuth();
 
   const filteredNavItems = navItems.filter(
-    (item) => !item.adminOnly || isAdmin
+    (item) => !item.adminOnly || canManage
   );
 
   return (

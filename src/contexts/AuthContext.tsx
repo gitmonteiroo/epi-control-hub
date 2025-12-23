@@ -3,6 +3,8 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
+export type UserRole = "admin" | "operator" | "supervisor";
+
 interface Profile {
   id: string;
   full_name: string;
@@ -11,7 +13,7 @@ interface Profile {
   position: string | null;
   email: string;
   phone: string | null;
-  role: "admin" | "operator";
+  role: UserRole;
 }
 
 interface AuthContextType {
@@ -23,6 +25,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, employeeId: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  isSupervisor: boolean;
+  canManage: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -112,6 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = profile?.role === "admin";
+  const isSupervisor = profile?.role === "supervisor";
+  const canManage = isAdmin || isSupervisor;
 
   return (
     <AuthContext.Provider
@@ -124,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         isAdmin,
+        isSupervisor,
+        canManage,
       }}
     >
       {children}
