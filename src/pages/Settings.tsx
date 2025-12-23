@@ -13,111 +13,25 @@ import { toast } from "sonner";
 import { Settings as SettingsIcon, Bell, Package, Palette, Save, Loader2, Sun, Moon, Monitor } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { supabase } from "@/integrations/supabase/client";
-
-interface UserSettings {
-  default_min_stock: number;
-  critical_stock_threshold: number;
-  low_stock_notifications: boolean;
-  critical_stock_notifications: boolean;
-  withdrawal_notifications: boolean;
-  email_notifications: boolean;
-  theme: string;
-  items_per_page: number;
-}
-
-const defaultSettings: UserSettings = {
-  default_min_stock: 5,
-  critical_stock_threshold: 0,
-  low_stock_notifications: true,
-  critical_stock_notifications: true,
-  withdrawal_notifications: false,
-  email_notifications: false,
-  theme: "light",
-  items_per_page: 10,
-};
+import { useSettings, UserSettings } from "@/contexts/SettingsContext";
 
 export default function Settings() {
-  const { user, profile, canManage } = useAuth();
+  const { profile, canManage } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
-  const [isLoading, setIsLoading] = useState(true);
+  const { settings, isLoading, updateSettings, resetSettings } = useSettings();
+  const [localSettings, setLocalSettings] = useState<UserSettings>(settings);
   const [isSaving, setIsSaving] = useState(false);
-  const [hasSettings, setHasSettings] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchSettings();
-    }
-  }, [user]);
-
-  const fetchSettings = async () => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("user_settings")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setSettings({
-          default_min_stock: data.default_min_stock,
-          critical_stock_threshold: data.critical_stock_threshold,
-          low_stock_notifications: data.low_stock_notifications,
-          critical_stock_notifications: data.critical_stock_notifications,
-          withdrawal_notifications: data.withdrawal_notifications,
-          email_notifications: data.email_notifications,
-          theme: data.theme,
-          items_per_page: data.items_per_page,
-        });
-        setHasSettings(true);
-      } else {
-        setSettings(defaultSettings);
-        setHasSettings(false);
-      }
-    } catch (error) {
-      console.error("Error fetching settings:", error);
-      toast.error("Erro ao carregar configurações");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setLocalSettings(settings);
+  }, [settings]);
 
   const handleSave = async () => {
-    if (!user) return;
-    
     setIsSaving(true);
     try {
-      if (hasSettings) {
-        const { error } = await supabase
-          .from("user_settings")
-          .update({
-            ...settings,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", user.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_settings")
-          .insert({
-            user_id: user.id,
-            ...settings,
-          });
-
-        if (error) throw error;
-        setHasSettings(true);
-      }
-
+      await updateSettings(localSettings);
       toast.success("Configurações salvas com sucesso!");
     } catch (error) {
-      console.error("Error saving settings:", error);
       toast.error("Erro ao salvar configurações");
     } finally {
       setIsSaving(false);
@@ -125,37 +39,22 @@ export default function Settings() {
   };
 
   const handleReset = async () => {
-    if (!user) return;
-
     setIsSaving(true);
     try {
-      if (hasSettings) {
-        const { error } = await supabase
-          .from("user_settings")
-          .update({
-            ...defaultSettings,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", user.id);
-
-        if (error) throw error;
-      }
-
-      setSettings(defaultSettings);
+      await resetSettings();
       toast.info("Configurações restauradas para o padrão");
     } catch (error) {
-      console.error("Error resetting settings:", error);
       toast.error("Erro ao restaurar configurações");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const updateSetting = <K extends keyof UserSettings>(
+  const updateLocalSetting = <K extends keyof UserSettings>(
     key: K,
     value: UserSettings[K]
   ) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setLocalSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   if (isLoading) {
@@ -214,9 +113,9 @@ export default function Settings() {
                   id="defaultMinStock"
                   type="number"
                   min={0}
-                  value={settings.default_min_stock}
+                  value={localSettings.default_min_stock}
                   onChange={(e) =>
-                    updateSetting("default_min_stock", parseInt(e.target.value) || 0)
+                    updateLocalSetting("default_min_stock", parseInt(e.target.value) || 0)
                   }
                   disabled={!canManage}
                 />
@@ -233,9 +132,9 @@ export default function Settings() {
                   id="criticalThreshold"
                   type="number"
                   min={0}
-                  value={settings.critical_stock_threshold}
+                  value={localSettings.critical_stock_threshold}
                   onChange={(e) =>
-                    updateSetting(
+                    updateLocalSetting(
                       "critical_stock_threshold",
                       parseInt(e.target.value) || 0
                     )
@@ -269,9 +168,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.low_stock_notifications}
+                  checked={localSettings.low_stock_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("low_stock_notifications", checked)
+                    updateLocalSetting("low_stock_notifications", checked)
                   }
                 />
               </div>
@@ -286,9 +185,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.critical_stock_notifications}
+                  checked={localSettings.critical_stock_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("critical_stock_notifications", checked)
+                    updateLocalSetting("critical_stock_notifications", checked)
                   }
                 />
               </div>
@@ -303,9 +202,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.withdrawal_notifications}
+                  checked={localSettings.withdrawal_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("withdrawal_notifications", checked)
+                    updateLocalSetting("withdrawal_notifications", checked)
                   }
                 />
               </div>
@@ -320,9 +219,9 @@ export default function Settings() {
                   </p>
                 </div>
                 <Switch
-                  checked={settings.email_notifications}
+                  checked={localSettings.email_notifications}
                   onCheckedChange={(checked) =>
-                    updateSetting("email_notifications", checked)
+                    updateLocalSetting("email_notifications", checked)
                   }
                   disabled
                 />
@@ -380,9 +279,9 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label htmlFor="itemsPerPage">Itens por página</Label>
                 <Select
-                  value={settings.items_per_page.toString()}
+                  value={localSettings.items_per_page.toString()}
                   onValueChange={(value) =>
-                    updateSetting("items_per_page", parseInt(value))
+                    updateLocalSetting("items_per_page", parseInt(value))
                   }
                 >
                   <SelectTrigger id="itemsPerPage">
