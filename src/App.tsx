@@ -20,6 +20,7 @@ import Movements from "./pages/Movements";
 import Reports from "./pages/Reports";
 import EmployeeEpiReport from "./pages/EmployeeEpiReport";
 import Settings from "./pages/Settings";
+import Audit from "./pages/Audit";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const App = () => (
                 <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
                 <Route path="/reports/employee-epi" element={<ProtectedRoute><EmployeeEpiReport /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/audit" element={<ProtectedRoute adminOnly><Audit /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </SettingsProvider>

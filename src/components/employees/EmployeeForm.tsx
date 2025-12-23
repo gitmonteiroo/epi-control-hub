@@ -5,11 +5,11 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { createAuditLog } from "@/services/auditService";
 
 const employeeSchema = z.object({
   full_name: z.string().min(3, "Nome deve ter no mínimo 3 caracteres").max(100, "Nome muito longo"),
@@ -121,6 +121,12 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
 
         if (error) throw error;
 
+        await createAuditLog({
+          acao: "Editou Funcionário",
+          entidade: "Funcionário",
+          detalhes: { id: employeeId, nome: values.full_name, matricula: values.employee_id },
+        });
+
         toast({
           title: "Sucesso",
           description: "Funcionário atualizado com sucesso",
@@ -158,6 +164,12 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
 
           if (updateError) throw updateError;
         }
+
+        await createAuditLog({
+          acao: "Criou Funcionário",
+          entidade: "Funcionário",
+          detalhes: { nome: values.full_name, matricula: values.employee_id, email: values.email },
+        });
 
         toast({
           title: "Sucesso",

@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ArrowLeft } from "lucide-react";
+import { createAuditLog } from "@/services/auditService";
 
 const productSchema = z.object({
   code: z.string().optional(),
@@ -120,10 +121,20 @@ export default function ProductForm() {
           .eq("id", id);
 
         if (error) throw error;
+        await createAuditLog({
+          acao: "Editou EPI",
+          entidade: "EPI",
+          detalhes: { id, nome: data.name, codigo: data.code },
+        });
         toast.success("Produto atualizado com sucesso");
       } else {
-        const { error } = await supabase.from("products").insert(productData);
+        const { data: insertedData, error } = await supabase.from("products").insert(productData).select().single();
         if (error) throw error;
+        await createAuditLog({
+          acao: "Criou EPI",
+          entidade: "EPI",
+          detalhes: { id: insertedData?.id, nome: data.name, codigo: data.code },
+        });
         toast.success("Produto cadastrado com sucesso");
       }
       navigate("/products");
