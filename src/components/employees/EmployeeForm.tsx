@@ -24,7 +24,7 @@ const employeeSchema = z.object({
   status: z.enum(["ativo", "inativo"], {
     required_error: "Status é obrigatório",
   }),
-  role: z.enum(["admin", "operator"], {
+  role: z.enum(["admin", "operator", "supervisor"], {
     required_error: "Papel é obrigatório",
   }),
 });
@@ -342,6 +342,7 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="operator">Operador</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
                     <SelectItem value="admin">Administrador</SelectItem>
                   </SelectContent>
                 </Select>

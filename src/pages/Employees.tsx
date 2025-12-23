@@ -43,7 +43,7 @@ interface Employee {
   email: string;
   phone: string | null;
   status: string | null;
-  role: "admin" | "operator";
+  role: "admin" | "operator" | "supervisor";
 }
 
 export default function Employees() {
@@ -243,8 +243,20 @@ export default function Employees() {
                     >
                       {employee.status === "ativo" ? "Ativo" : "Inativo"}
                     </Badge>
-                    <Badge variant={employee.role === "admin" ? "default" : "outline"}>
-                      {employee.role === "admin" ? "Admin" : "Operador"}
+                    <Badge 
+                      variant={
+                        employee.role === "admin" 
+                          ? "default" 
+                          : employee.role === "supervisor" 
+                            ? "secondary" 
+                            : "outline"
+                      }
+                    >
+                      {employee.role === "admin" 
+                        ? "Admin" 
+                        : employee.role === "supervisor" 
+                          ? "Supervisor" 
+                          : "Operador"}
                     </Badge>
                   </div>
                 </CardHeader>
