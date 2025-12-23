@@ -31,6 +31,7 @@ import { fetchEmployees, type Employee } from "@/services/employeeService";
 import { createWithdrawal } from "@/services/movementService";
 import { WITHDRAWAL_REASONS } from "@/utils/stock";
 import { supabase } from "@/integrations/supabase/client";
+import { createAuditLog } from "@/services/auditService";
 
 const withdrawalSchema = z.object({
   product_id: z.string().min(1, "Produto é obrigatório"),
@@ -133,6 +134,19 @@ export function WithdrawalDialog({
         quantity: data.quantity,
         reason: data.reason,
       });
+
+      const employee = employees.find(e => e.id === data.employee_id);
+      await createAuditLog({
+        acao: "Registrou Retirada",
+        entidade: "Retirada",
+        detalhes: {
+          produto: selectedProduct?.name,
+          funcionario: employee?.full_name,
+          quantidade: data.quantity,
+          motivo: data.reason,
+        },
+      });
+
       toast.success("Retirada registrada com sucesso");
       form.reset();
       onOpenChange(false);

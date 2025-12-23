@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit, Trash2, FolderTree } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { createAuditLog } from "@/services/auditService";
 import {
   Dialog,
   DialogContent,
@@ -79,13 +80,25 @@ export default function Categories() {
           .eq("id", selectedCategory.id);
 
         if (error) throw error;
+        await createAuditLog({
+          acao: "Editou Categoria",
+          entidade: "Categoria",
+          detalhes: { id: selectedCategory.id, nome: formData.name },
+        });
         toast.success("Categoria atualizada com sucesso!");
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("categories")
-          .insert([formData]);
+          .insert([formData])
+          .select()
+          .single();
 
         if (error) throw error;
+        await createAuditLog({
+          acao: "Criou Categoria",
+          entidade: "Categoria",
+          detalhes: { id: data?.id, nome: formData.name },
+        });
         toast.success("Categoria criada com sucesso!");
       }
 
@@ -112,6 +125,11 @@ export default function Categories() {
         .eq("id", selectedCategory.id);
 
       if (error) throw error;
+      await createAuditLog({
+        acao: "Excluiu Categoria",
+        entidade: "Categoria",
+        detalhes: { id: selectedCategory.id, nome: selectedCategory.name },
+      });
       toast.success("Categoria excluída com sucesso!");
       setDeleteDialogOpen(false);
       setSelectedCategory(null);

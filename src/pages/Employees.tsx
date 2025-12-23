@@ -20,6 +20,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { Users, Plus, Edit, Trash2, Mail, Phone, Building2, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { createAuditLog } from "@/services/auditService";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,10 +82,16 @@ export default function Employees() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, name: string) => {
     try {
       const { error } = await supabase.from("profiles").delete().eq("id", id);
       if (error) throw error;
+
+      await createAuditLog({
+        acao: "Excluiu Funcionário",
+        entidade: "Funcionário",
+        detalhes: { id, nome: name },
+      });
 
       toast({
         title: "Sucesso",
@@ -233,7 +240,7 @@ export default function Employees() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                                 <AlertDialogAction
-                                  onClick={() => handleDelete(employee.id)}
+                                  onClick={() => handleDelete(employee.id, employee.full_name)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
                                   Remover

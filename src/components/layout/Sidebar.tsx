@@ -11,6 +11,7 @@ import {
   UserCheck,
   Settings,
   ShieldCheck,
+  ScrollText,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -70,6 +71,12 @@ const navItems: NavItem[] = [
     title: "EPIs por Funcionário",
     href: "/reports/employee-epi",
     icon: UserCheck,
+  },
+  {
+    title: "Auditoria",
+    href: "/audit",
+    icon: ScrollText,
+    superAdminOnly: true,
   },
   {
     title: "Configurações",

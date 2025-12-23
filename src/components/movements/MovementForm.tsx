@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { createAuditLog } from "@/services/auditService";
 
 const movementSchema = z.object({
   product_id: z.string().min(1, "Produto é obrigatório"),
@@ -93,6 +94,17 @@ export function MovementForm({ onSuccess, onCancel }: MovementFormProps) {
       });
 
       if (error) throw error;
+
+      const product = products.find(p => p.id === values.product_id);
+      await createAuditLog({
+        acao: "Ajuste de Estoque (Entrada)",
+        entidade: "Estoque",
+        detalhes: {
+          produto: product?.name,
+          quantidade: parseInt(values.quantity),
+          observacoes: values.notes,
+        },
+      });
 
       toast({
         title: "Sucesso",

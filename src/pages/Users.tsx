@@ -43,6 +43,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Users as UsersIcon, Loader2 } from "lucide-react";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { createAuditLog } from "@/services/auditService";
 
 type UserRole = "admin" | "operator" | "supervisor";
 
@@ -101,9 +102,18 @@ export default function Users() {
 
       if (error) throw error;
       if (result.error) throw new Error(result.error);
-      return result;
+      return { ...result, userData: data };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      createAuditLog({
+        acao: "Criou Usuário",
+        entidade: "Usuário",
+        detalhes: {
+          email: result.userData.email,
+          nome: result.userData.fullName,
+          role: result.userData.role,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setIsAddDialogOpen(false);
       resetForm();
@@ -133,9 +143,18 @@ export default function Users() {
 
       if (error) throw error;
       if (result.error) throw new Error(result.error);
-      return result;
+      return { ...result, userId, role };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      createAuditLog({
+        acao: "Alterou Papel de Usuário",
+        entidade: "Usuário",
+        detalhes: {
+          usuario: selectedUser?.full_name,
+          email: selectedUser?.email,
+          novo_papel: result.role,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setIsEditDialogOpen(false);
       setSelectedUser(null);
@@ -164,9 +183,17 @@ export default function Users() {
 
       if (error) throw error;
       if (result.error) throw new Error(result.error);
-      return result;
+      return { ...result, userId };
     },
     onSuccess: () => {
+      createAuditLog({
+        acao: "Excluiu Usuário",
+        entidade: "Usuário",
+        detalhes: {
+          usuario: selectedUser?.full_name,
+          email: selectedUser?.email,
+        },
+      });
       queryClient.invalidateQueries({ queryKey: ["users"] });
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);

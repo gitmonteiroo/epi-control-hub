@@ -31,6 +31,7 @@ import { fetchEmployees, type Employee } from "@/services/employeeService";
 import { createReturn } from "@/services/movementService";
 import { EPI_CONDITIONS } from "@/utils/stock";
 import { supabase } from "@/integrations/supabase/client";
+import { createAuditLog } from "@/services/auditService";
 
 const returnSchema = z.object({
   product_id: z.string().min(1, "Produto é obrigatório"),
@@ -106,12 +107,26 @@ export function ReturnDialog({
   const onSubmit = async (data: ReturnFormData) => {
     setLoading(true);
     try {
+      const product = products.find(p => p.id === data.product_id);
+      const employee = employees.find(e => e.id === data.employee_id);
+
       await createReturn({
         product_id: data.product_id,
         employee_id: data.employee_id,
         quantity: data.quantity,
         reason: data.reason || null,
         condition: data.condition,
+      });
+
+      await createAuditLog({
+        acao: "Registrou Devolução",
+        entidade: "Devolução",
+        detalhes: {
+          produto: product?.name,
+          funcionario: employee?.full_name,
+          quantidade: data.quantity,
+          condicao: data.condition,
+        },
       });
 
       toast.success("Devolução registrada com sucesso");
