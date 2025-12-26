@@ -186,11 +186,23 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
           detalhes: { nome: values.full_name, matricula: values.employee_id, email: values.email },
         });
 
-        toast({
-          title: "Funcionário criado com sucesso",
-          description: `Senha temporária: ${tempPassword} - Anote e entregue ao funcionário de forma segura.`,
-          duration: 15000, // Manter visível por mais tempo para o admin copiar
-        });
+        // Copy password to clipboard securely (avoid DOM exposure)
+        try {
+          await navigator.clipboard.writeText(tempPassword);
+          toast({
+            title: "Funcionário criado com sucesso",
+            description: "Senha temporária copiada para área de transferência. Cole em local seguro e entregue ao funcionário.",
+            duration: 5000,
+          });
+        } catch (clipboardError) {
+          // Fallback: show password only if clipboard fails
+          console.error("Erro ao copiar para clipboard:", clipboardError);
+          toast({
+            title: "Funcionário criado com sucesso",
+            description: `Senha temporária: ${tempPassword} - Anote imediatamente.`,
+            duration: 8000,
+          });
+        }
       }
 
       onSuccess?.();
