@@ -74,30 +74,31 @@ export default function Withdrawals() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <PageHeader
           title="Retiradas"
           description="Histórico de retiradas de EPIs"
         />
 
         <Card>
-          <CardContent className="pt-5">
+          <CardContent className="p-3 sm:pt-5 sm:px-6">
             <SearchInput
               value={searchTerm}
               onChange={setSearchTerm}
-              placeholder="Buscar por produto, código ou funcionário..."
-              className="max-w-md"
+              placeholder="Buscar por produto ou funcionário..."
+              className="w-full sm:max-w-md"
             />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
               <ClipboardList className="h-5 w-5" />
-              Últimas Retiradas
+              <span className="sm:hidden">Últimas</span>
+              <span className="hidden sm:inline">Últimas Retiradas</span>
               <Badge variant="secondary" className="ml-auto">
-                {filteredWithdrawals.length} registros
+                {filteredWithdrawals.length}
               </Badge>
             </CardTitle>
           </CardHeader>

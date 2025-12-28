@@ -119,19 +119,20 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <PageHeader
           title="Dashboard"
           description="Visão geral do sistema de EPIs"
           actions={
-            <Button onClick={() => setWithdrawalDialogOpen(true)} size="lg">
+            <Button onClick={() => setWithdrawalDialogOpen(true)} size="lg" className="w-full sm:w-auto">
               <Plus className="mr-2 h-5 w-5" />
-              Registrar Retirada
+              <span className="sm:hidden">Retirada</span>
+              <span className="hidden sm:inline">Registrar Retirada</span>
             </Button>
           }
         />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 sm:gap-4 lg:grid-cols-4">
           <StatsCard
             title="Total de Produtos"
             value={stats.totalProducts}
@@ -164,7 +165,7 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
           {/* Alertas de Estoque */}
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
