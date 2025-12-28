@@ -373,18 +373,18 @@ export default function Reports() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <PageHeader
           title="Relatórios"
           description="Análises e exportação de dados"
           actions={
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={exportToPDF} variant="outline" size="sm">
-                <FileText className="mr-2 h-4 w-4" />
+            <div className="flex gap-2">
+              <Button onClick={exportToPDF} variant="outline" size="lg" className="flex-1 sm:flex-none">
+                <FileText className="mr-2 h-5 w-5" />
                 PDF
               </Button>
-              <Button onClick={exportToExcel} size="sm">
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
+              <Button onClick={exportToExcel} size="lg" className="flex-1 sm:flex-none">
+                <FileSpreadsheet className="mr-2 h-5 w-5" />
                 Excel
               </Button>
             </div>
@@ -392,7 +392,7 @@ export default function Reports() {
         />
 
         {/* Stats Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 sm:gap-4 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total de Produtos</CardTitle>

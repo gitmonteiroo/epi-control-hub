@@ -143,6 +143,9 @@ All colors MUST be HSL.
     @apply bg-background text-foreground antialiased;
     /* Prevent pull-to-refresh on mobile */
     overscroll-behavior-y: contain;
+    /* Better text rendering for outdoor readability */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   /* Improve input appearance on mobile */
@@ -155,6 +158,15 @@ All colors MUST be HSL.
     input, textarea, select {
       @apply text-sm;
     }
+  }
+
+  /* Safe area for devices with notches/home indicators */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
   }
 }
 

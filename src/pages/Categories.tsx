@@ -170,21 +170,21 @@ export default function Categories() {
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Categorias</h1>
-            <p className="text-muted-foreground">Organize seus produtos por categoria</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Categorias</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Organize seus produtos por categoria</p>
           </div>
           {canManage && (
-            <Button onClick={openNewDialog}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button onClick={openNewDialog} size="lg" className="w-full sm:w-auto">
+              <Plus className="mr-2 h-5 w-5" />
               Nova Categoria
             </Button>
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {categories.length === 0 ? (
             <Card className="col-span-full">
               <CardContent className="flex flex-col items-center justify-center py-12">
@@ -194,8 +194,8 @@ export default function Categories() {
                   {canManage ? "Cadastre sua primeira categoria" : "Nenhuma categoria disponível"}
                 </p>
                 {canManage && (
-                  <Button onClick={openNewDialog}>
-                    <Plus className="mr-2 h-4 w-4" />
+                  <Button onClick={openNewDialog} size="lg">
+                    <Plus className="mr-2 h-5 w-5" />
                     Nova Categoria
                   </Button>
                 )}
@@ -203,33 +203,39 @@ export default function Categories() {
             </Card>
           ) : (
             categories.map((category) => (
-              <Card key={category.id}>
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+              <Card key={category.id} className="overflow-hidden">
+                <div 
+                  className="h-1.5 w-full" 
+                  style={{ backgroundColor: category.color || "#6366f1" }}
+                />
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div 
-                        className="w-4 h-4 rounded-full border-2 border-border" 
+                        className="w-4 h-4 rounded-full border-2 border-border shrink-0" 
                         style={{ backgroundColor: category.color || "#6366f1" }}
                       />
-                      <span className="text-lg">{category.name}</span>
+                      <span className="text-lg truncate">{category.name}</span>
                     </div>
                     {canManage && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 shrink-0">
                         <Button
                           size="icon"
-                          variant="outline"
+                          variant="ghost"
                           onClick={() => openEditDialog(category)}
+                          className="h-10 w-10"
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
                         {isAdmin && (
                           <Button
                             size="icon"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => {
                               setSelectedCategory(category);
                               setDeleteDialogOpen(true);
                             }}
+                            className="h-10 w-10"
                           >
                             <Trash2 className="h-4 w-4 text-danger" />
                           </Button>
@@ -239,7 +245,7 @@ export default function Categories() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground line-clamp-2">
                     {category.description || "Sem descrição"}
                   </p>
                 </CardContent>
@@ -251,7 +257,7 @@ export default function Categories() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[95vw] max-w-lg overflow-y-auto sm:w-full">
           <DialogHeader>
             <DialogTitle>
               {selectedCategory ? "Editar Categoria" : "Nova Categoria"}
