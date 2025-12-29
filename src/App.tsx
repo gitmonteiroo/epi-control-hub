@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { SettingsProvider } from "./contexts/SettingsContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { InstallPrompt } from "./components/pwa/InstallPrompt";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/audit" element={<ProtectedRoute adminOnly><Audit /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <InstallPrompt />
             </SettingsProvider>
           </AuthProvider>
         </BrowserRouter>
