@@ -80,16 +80,94 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  // Filtros
+  // Filtros gerais
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<StockFilter>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  // Filtros do relatório de consumo
+  const [consumptionDateFrom, setConsumptionDateFrom] = useState(() => {
+    const date = subDays(new Date(), 30);
+    return format(date, "yyyy-MM-dd");
+  });
+  const [consumptionDateTo, setConsumptionDateTo] = useState(() => {
+    return format(new Date(), "yyyy-MM-dd");
+  });
+  const [consumptionProductFilter, setConsumptionProductFilter] = useState<string>("all");
+  const [consumptionData, setConsumptionData] = useState<{ product_id: string; product_name: string; product_code: string | null; category: string | null; total_quantity: number; unit: string; withdrawal_count: number }[]>([]);
+  const [loadingConsumption, setLoadingConsumption] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchConsumptionData();
+  }, [consumptionDateFrom, consumptionDateTo, consumptionProductFilter]);
+
+  const fetchConsumptionData = async () => {
+    setLoadingConsumption(true);
+    try {
+      let query = supabase
+        .from("withdrawals")
+        .select("quantity, product_id, created_at, products(id, name, code, unit, categories(name))")
+        .gte("created_at", startOfDay(parseISO(consumptionDateFrom)).toISOString())
+        .lte("created_at", endOfDay(parseISO(consumptionDateTo)).toISOString());
+
+      if (consumptionProductFilter !== "all") {
+        query = query.eq("product_id", consumptionProductFilter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Aggregate by product
+      const productMap = new Map<string, { 
+        product_id: string;
+        product_name: string; 
+        product_code: string | null;
+        category: string | null;
+        total_quantity: number; 
+        unit: string;
+        withdrawal_count: number;
+      }>();
+
+      (data || []).forEach((w: any) => {
+        const productId = w.product_id;
+        const existing = productMap.get(productId);
+        if (existing) {
+          existing.total_quantity += w.quantity;
+          existing.withdrawal_count += 1;
+        } else {
+          productMap.set(productId, {
+            product_id: productId,
+            product_name: w.products?.name || "Desconhecido",
+            product_code: w.products?.code || null,
+            category: w.products?.categories?.name || null,
+            total_quantity: w.quantity,
+            unit: w.products?.unit || "un",
+            withdrawal_count: 1,
+          });
+        }
+      });
+
+      const aggregatedData = Array.from(productMap.values())
+        .sort((a, b) => b.total_quantity - a.total_quantity);
+
+      setConsumptionData(aggregatedData);
+    } catch (error) {
+      console.error("Error fetching consumption data:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar dados de consumo",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingConsumption(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -768,6 +846,178 @@ export default function Reports() {
           );
         })()}
         </div>
+
+        {/* Relatório de Saída e Consumo de EPIs */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <CardTitle className="flex items-center gap-2 text-base flex-1">
+                  <TrendingDown className="h-5 w-5 text-primary" />
+                  Relatório de Saída e Consumo de EPIs
+                </CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const doc = new jsPDF();
+                      doc.setFontSize(18);
+                      doc.text("Relatório de Consumo de EPIs", 14, 20);
+                      doc.setFontSize(12);
+                      doc.text(`Período: ${format(parseISO(consumptionDateFrom), "dd/MM/yyyy", { locale: ptBR })} a ${format(parseISO(consumptionDateTo), "dd/MM/yyyy", { locale: ptBR })}`, 14, 30);
+                      doc.text(`Total de itens: ${consumptionData.length}`, 14, 38);
+                      doc.text(`Total de saídas: ${consumptionData.reduce((sum, d) => sum + d.total_quantity, 0)}`, 14, 46);
+
+                      const tableData = consumptionData.map(d => [
+                        d.product_code || "-",
+                        d.product_name,
+                        d.category || "-",
+                        d.total_quantity.toString(),
+                        d.unit,
+                        d.withdrawal_count.toString(),
+                      ]);
+
+                      autoTable(doc, {
+                        head: [["Código", "EPI", "Categoria", "Qtd. Saída", "Unid.", "Nº Retiradas"]],
+                        body: tableData,
+                        startY: 54,
+                        styles: { fontSize: 9 },
+                        headStyles: { fillColor: [59, 130, 246] },
+                      });
+
+                      doc.save(`relatorio-consumo-${consumptionDateFrom}-a-${consumptionDateTo}.pdf`);
+                      toast({ title: "PDF exportado", description: `Relatório de consumo gerado` });
+                    }}
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const data = consumptionData.map(d => ({
+                        "Código": d.product_code || "-",
+                        "EPI": d.product_name,
+                        "Categoria": d.category || "-",
+                        "Quantidade Total de Saídas": d.total_quantity,
+                        "Unidade": d.unit,
+                        "Número de Retiradas": d.withdrawal_count,
+                      }));
+
+                      const ws = XLSX.utils.json_to_sheet(data);
+                      ws["!cols"] = [
+                        { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 22 }, { wch: 10 }, { wch: 18 },
+                      ];
+
+                      const wb = XLSX.utils.book_new();
+                      XLSX.utils.book_append_sheet(wb, ws, "Consumo EPIs");
+
+                      XLSX.writeFile(wb, `relatorio-consumo-${consumptionDateFrom}-a-${consumptionDateTo}.xlsx`);
+                      toast({ title: "Excel exportado", description: `Relatório de consumo gerado` });
+                    }}
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-1" />
+                    Excel
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filtros */}
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Data Início</Label>
+                  <Input
+                    type="date"
+                    value={consumptionDateFrom}
+                    onChange={(e) => setConsumptionDateFrom(e.target.value)}
+                    className="w-[150px] h-9"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Data Fim</Label>
+                  <Input
+                    type="date"
+                    value={consumptionDateTo}
+                    onChange={(e) => setConsumptionDateTo(e.target.value)}
+                    className="w-[150px] h-9"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">EPI</Label>
+                  <Select value={consumptionProductFilter} onValueChange={setConsumptionProductFilter}>
+                    <SelectTrigger className="w-[200px] h-9">
+                      <SelectValue placeholder="Todos os EPIs" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os EPIs</SelectItem>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.code ? `${product.code} - ` : ""}{product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            {loadingConsumption ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
+            ) : consumptionData.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhuma saída encontrada no período selecionado
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-4 mb-4 text-sm">
+                  <div className="bg-muted/50 px-3 py-2 rounded-lg">
+                    <span className="text-muted-foreground">Total de EPIs:</span>
+                    <span className="ml-2 font-semibold">{consumptionData.length}</span>
+                  </div>
+                  <div className="bg-muted/50 px-3 py-2 rounded-lg">
+                    <span className="text-muted-foreground">Total de Saídas:</span>
+                    <span className="ml-2 font-semibold">{consumptionData.reduce((sum, d) => sum + d.total_quantity, 0)}</span>
+                  </div>
+                  <div className="bg-muted/50 px-3 py-2 rounded-lg">
+                    <span className="text-muted-foreground">Total de Retiradas:</span>
+                    <span className="ml-2 font-semibold">{consumptionData.reduce((sum, d) => sum + d.withdrawal_count, 0)}</span>
+                  </div>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>EPI</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead className="text-center">Qtd. Total de Saídas</TableHead>
+                      <TableHead className="text-center">Unid.</TableHead>
+                      <TableHead className="text-center">Nº de Retiradas</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {consumptionData.map((item) => (
+                      <TableRow key={item.product_id} className="hover:bg-muted/50">
+                        <TableCell className="font-mono text-sm">{item.product_code || "-"}</TableCell>
+                        <TableCell className="font-medium">{item.product_name}</TableCell>
+                        <TableCell>{item.category || "-"}</TableCell>
+                        <TableCell className="text-center font-semibold text-primary">
+                          {item.total_quantity}
+                        </TableCell>
+                        <TableCell className="text-center">{item.unit}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">{item.withdrawal_count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Top EPIs */}
         <Card>
