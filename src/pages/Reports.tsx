@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Download, Package, Users, TrendingUp, TrendingDown, Filter, FileSpreadsheet, FileText, Calendar, Search } from "lucide-react";
+import { Download, Package, Users, TrendingUp, TrendingDown, Filter, FileSpreadsheet, FileText, Calendar, Search, ShoppingCart, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PageHeader } from "@/components/ui/page-header";
 import { LoadingPage } from "@/components/ui/loading";
@@ -610,7 +610,72 @@ export default function Reports() {
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
-          </Card>
+        </Card>
+
+        {/* EPIs que Necessitam Compra */}
+        {(() => {
+          const CRITICAL_THRESHOLD = 10;
+          const needsPurchase = products.filter(p => p.stock_available <= CRITICAL_THRESHOLD);
+          
+          if (needsPurchase.length === 0) return null;
+          
+          return (
+            <Card className="border-warning/50 bg-warning/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShoppingCart className="h-5 w-5 text-warning" />
+                  EPIs que Necessitam Compra
+                  <span className="ml-auto flex items-center gap-1 text-sm font-normal text-warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    {needsPurchase.length} {needsPurchase.length === 1 ? 'item' : 'itens'}
+                  </span>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  EPIs com estoque crítico (≤ {CRITICAL_THRESHOLD} unidades) que precisam de reposição
+                </p>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead className="text-center">Estoque Atual</TableHead>
+                      <TableHead className="text-center">Estoque Mínimo</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {needsPurchase
+                      .sort((a, b) => a.stock_available - b.stock_available)
+                      .map((product) => (
+                        <TableRow key={product.id} className="hover:bg-muted/50">
+                          <TableCell className="font-mono text-sm">{product.code || "-"}</TableCell>
+                          <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>{product.categories?.name || "-"}</TableCell>
+                          <TableCell className="text-center">
+                            <span className={`font-bold ${product.stock_available === 0 ? 'text-danger' : product.stock_available <= 5 ? 'text-danger' : 'text-warning'}`}>
+                              {product.stock_available} {product.unit}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-center text-muted-foreground">
+                            {product.min_stock} {product.unit}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-warning/20 text-warning-foreground border border-warning/30">
+                              <ShoppingCart className="h-3 w-3" />
+                              Necessita Compra
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          );
+        })()}
         </div>
 
         {/* Top EPIs */}
