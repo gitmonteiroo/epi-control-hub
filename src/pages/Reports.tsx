@@ -96,23 +96,41 @@ export default function Reports() {
     return format(new Date(), "yyyy-MM-dd");
   });
   const [consumptionProductFilter, setConsumptionProductFilter] = useState<string>("all");
-  const [consumptionData, setConsumptionData] = useState<{ product_id: string; product_name: string; product_code: string | null; category: string | null; total_quantity: number; unit: string; withdrawal_count: number }[]>([]);
+  const [consumptionEmployeeFilter, setConsumptionEmployeeFilter] = useState<string>("all");
+  const [employees, setEmployees] = useState<{ id: string; full_name: string; employee_id: string }[]>([]);
+  const [consumptionData, setConsumptionData] = useState<{ product_id: string; product_name: string; product_code: string | null; category: string | null; total_quantity: number; unit: string; withdrawal_count: number; employee_name?: string; employee_id_code?: string }[]>([]);
   const [loadingConsumption, setLoadingConsumption] = useState(false);
 
   useEffect(() => {
     fetchData();
+    fetchEmployees();
   }, []);
 
   useEffect(() => {
     fetchConsumptionData();
-  }, [consumptionDateFrom, consumptionDateTo, consumptionProductFilter]);
+  }, [consumptionDateFrom, consumptionDateTo, consumptionProductFilter, consumptionEmployeeFilter]);
+
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, employee_id")
+        .eq("status", "ativo")
+        .order("full_name");
+      
+      if (error) throw error;
+      setEmployees(data || []);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+    }
+  };
 
   const fetchConsumptionData = async () => {
     setLoadingConsumption(true);
     try {
       let query = supabase
         .from("withdrawals")
-        .select("quantity, product_id, created_at, products(id, name, code, unit, categories(name))")
+        .select("quantity, product_id, employee_id, created_at, products(id, name, code, unit, categories(name)), profiles(full_name, employee_id)")
         .gte("created_at", startOfDay(parseISO(consumptionDateFrom)).toISOString())
         .lte("created_at", endOfDay(parseISO(consumptionDateTo)).toISOString());
 
@@ -120,11 +138,16 @@ export default function Reports() {
         query = query.eq("product_id", consumptionProductFilter);
       }
 
+      if (consumptionEmployeeFilter !== "all") {
+        query = query.eq("employee_id", consumptionEmployeeFilter);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
 
-      // Aggregate by product
-      const productMap = new Map<string, { 
+      // Aggregate by product (and optionally employee)
+      const aggregateByEmployee = consumptionEmployeeFilter !== "all";
+      const dataMap = new Map<string, { 
         product_id: string;
         product_name: string; 
         product_code: string | null;
@@ -132,28 +155,35 @@ export default function Reports() {
         total_quantity: number; 
         unit: string;
         withdrawal_count: number;
+        employee_name?: string;
+        employee_id_code?: string;
       }>();
 
       (data || []).forEach((w: any) => {
-        const productId = w.product_id;
-        const existing = productMap.get(productId);
+        const key = aggregateByEmployee 
+          ? `${w.product_id}_${w.employee_id}` 
+          : w.product_id;
+        
+        const existing = dataMap.get(key);
         if (existing) {
           existing.total_quantity += w.quantity;
           existing.withdrawal_count += 1;
         } else {
-          productMap.set(productId, {
-            product_id: productId,
+          dataMap.set(key, {
+            product_id: w.product_id,
             product_name: w.products?.name || "Desconhecido",
             product_code: w.products?.code || null,
             category: w.products?.categories?.name || null,
             total_quantity: w.quantity,
             unit: w.products?.unit || "un",
             withdrawal_count: 1,
+            employee_name: w.profiles?.full_name || undefined,
+            employee_id_code: w.profiles?.employee_id || undefined,
           });
         }
       });
 
-      const aggregatedData = Array.from(productMap.values())
+      const aggregatedData = Array.from(dataMap.values())
         .sort((a, b) => b.total_quantity - a.total_quantity);
 
       setConsumptionData(aggregatedData);
@@ -866,22 +896,48 @@ export default function Reports() {
                       doc.text("Relatório de Consumo de EPIs", 14, 20);
                       doc.setFontSize(12);
                       doc.text(`Período: ${format(parseISO(consumptionDateFrom), "dd/MM/yyyy", { locale: ptBR })} a ${format(parseISO(consumptionDateTo), "dd/MM/yyyy", { locale: ptBR })}`, 14, 30);
-                      doc.text(`Total de itens: ${consumptionData.length}`, 14, 38);
-                      doc.text(`Total de saídas: ${consumptionData.reduce((sum, d) => sum + d.total_quantity, 0)}`, 14, 46);
+                      
+                      let yPos = 38;
+                      if (consumptionEmployeeFilter !== "all") {
+                        const emp = employees.find(e => e.id === consumptionEmployeeFilter);
+                        doc.text(`Funcionário: ${emp?.full_name || ""}${emp?.employee_id ? ` (${emp.employee_id})` : ""}`, 14, yPos);
+                        yPos += 8;
+                      }
+                      
+                      doc.text(`Total de itens: ${consumptionData.length}`, 14, yPos);
+                      yPos += 8;
+                      doc.text(`Total de saídas: ${consumptionData.reduce((sum, d) => sum + d.total_quantity, 0)}`, 14, yPos);
+                      yPos += 8;
 
-                      const tableData = consumptionData.map(d => [
-                        d.product_code || "-",
-                        d.product_name,
-                        d.category || "-",
-                        d.total_quantity.toString(),
-                        d.unit,
-                        d.withdrawal_count.toString(),
-                      ]);
+                      const hasEmployeeData = consumptionEmployeeFilter !== "all" && consumptionData.some(d => d.employee_name);
+                      const tableHead = hasEmployeeData 
+                        ? [["Código", "EPI", "Categoria", "Funcionário", "Qtd. Saída", "Unid.", "Nº Retiradas"]]
+                        : [["Código", "EPI", "Categoria", "Qtd. Saída", "Unid.", "Nº Retiradas"]];
+                        
+                      const tableData = consumptionData.map(d => hasEmployeeData 
+                        ? [
+                            d.product_code || "-",
+                            d.product_name,
+                            d.category || "-",
+                            d.employee_name || "-",
+                            d.total_quantity.toString(),
+                            d.unit,
+                            d.withdrawal_count.toString(),
+                          ]
+                        : [
+                            d.product_code || "-",
+                            d.product_name,
+                            d.category || "-",
+                            d.total_quantity.toString(),
+                            d.unit,
+                            d.withdrawal_count.toString(),
+                          ]
+                      );
 
                       autoTable(doc, {
-                        head: [["Código", "EPI", "Categoria", "Qtd. Saída", "Unid.", "Nº Retiradas"]],
+                        head: tableHead,
                         body: tableData,
-                        startY: 54,
+                        startY: yPos + 4,
                         styles: { fontSize: 9 },
                         headStyles: { fillColor: [59, 130, 246] },
                       });
@@ -897,19 +953,33 @@ export default function Reports() {
                     variant="outline"
                     size="sm"
                     onClick={() => {
-                      const data = consumptionData.map(d => ({
-                        "Código": d.product_code || "-",
-                        "EPI": d.product_name,
-                        "Categoria": d.category || "-",
-                        "Quantidade Total de Saídas": d.total_quantity,
-                        "Unidade": d.unit,
-                        "Número de Retiradas": d.withdrawal_count,
-                      }));
+                      const hasEmployeeData = consumptionEmployeeFilter !== "all" && consumptionData.some(d => d.employee_name);
+                      
+                      const data = consumptionData.map(d => hasEmployeeData 
+                        ? ({
+                            "Código": d.product_code || "-",
+                            "EPI": d.product_name,
+                            "Categoria": d.category || "-",
+                            "Funcionário": d.employee_name || "-",
+                            "Matrícula": d.employee_id_code || "-",
+                            "Quantidade Total de Saídas": d.total_quantity,
+                            "Unidade": d.unit,
+                            "Número de Retiradas": d.withdrawal_count,
+                          })
+                        : ({
+                            "Código": d.product_code || "-",
+                            "EPI": d.product_name,
+                            "Categoria": d.category || "-",
+                            "Quantidade Total de Saídas": d.total_quantity,
+                            "Unidade": d.unit,
+                            "Número de Retiradas": d.withdrawal_count,
+                          })
+                      );
 
                       const ws = XLSX.utils.json_to_sheet(data);
-                      ws["!cols"] = [
-                        { wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 22 }, { wch: 10 }, { wch: 18 },
-                      ];
+                      ws["!cols"] = hasEmployeeData 
+                        ? [{ wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 25 }, { wch: 12 }, { wch: 22 }, { wch: 10 }, { wch: 18 }]
+                        : [{ wch: 12 }, { wch: 30 }, { wch: 18 }, { wch: 22 }, { wch: 10 }, { wch: 18 }];
 
                       const wb = XLSX.utils.book_new();
                       XLSX.utils.book_append_sheet(wb, ws, "Consumo EPIs");
@@ -960,6 +1030,22 @@ export default function Reports() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">Funcionário</Label>
+                  <Select value={consumptionEmployeeFilter} onValueChange={setConsumptionEmployeeFilter}>
+                    <SelectTrigger className="w-[220px] h-9">
+                      <SelectValue placeholder="Todos os funcionários" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos os funcionários</SelectItem>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.employee_id ? `${emp.employee_id} - ` : ""}{emp.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -994,17 +1080,30 @@ export default function Reports() {
                       <TableHead>Código</TableHead>
                       <TableHead>EPI</TableHead>
                       <TableHead>Categoria</TableHead>
+                      {consumptionEmployeeFilter !== "all" && (
+                        <TableHead>Funcionário</TableHead>
+                      )}
                       <TableHead className="text-center">Qtd. Total de Saídas</TableHead>
                       <TableHead className="text-center">Unid.</TableHead>
                       <TableHead className="text-center">Nº de Retiradas</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {consumptionData.map((item) => (
-                      <TableRow key={item.product_id} className="hover:bg-muted/50">
+                    {consumptionData.map((item, idx) => (
+                      <TableRow key={`${item.product_id}_${idx}`} className="hover:bg-muted/50">
                         <TableCell className="font-mono text-sm">{item.product_code || "-"}</TableCell>
                         <TableCell className="font-medium">{item.product_name}</TableCell>
                         <TableCell>{item.category || "-"}</TableCell>
+                        {consumptionEmployeeFilter !== "all" && (
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{item.employee_name || "-"}</span>
+                              {item.employee_id_code && (
+                                <span className="text-xs text-muted-foreground">{item.employee_id_code}</span>
+                              )}
+                            </div>
+                          </TableCell>
+                        )}
                         <TableCell className="text-center font-semibold text-primary">
                           {item.total_quantity}
                         </TableCell>
