@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { fetchEmployees, type Employee } from "@/services/employeeService";
+import { fetchActiveCompanyEmployees, type CompanyEmployee } from "@/services/companyEmployeeService";
 import { createWithdrawal } from "@/services/movementService";
 import { WITHDRAWAL_REASONS } from "@/utils/stock";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,7 +63,7 @@ export function WithdrawalDialog({
   productId,
   onSuccess,
 }: WithdrawalDialogProps) {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<CompanyEmployee[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -99,7 +99,7 @@ export function WithdrawalDialog({
   const loadData = async () => {
     try {
       const [employeesData, productsRes] = await Promise.all([
-        fetchEmployees(),
+        fetchActiveCompanyEmployees(),
         supabase
           .from("products")
           .select("id, code, name, stock_available, unit")

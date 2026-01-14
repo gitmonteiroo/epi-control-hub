@@ -24,7 +24,6 @@ interface Employee {
   full_name: string;
   employee_id: string;
   department: string | null;
-  job_function: string | null;
 }
 
 interface EpiMovement {
@@ -71,8 +70,8 @@ export default function EmployeeEpiReport() {
 
   const fetchEmployees = async () => {
     const { data, error } = await supabase
-      .from("profiles")
-      .select("id, full_name, employee_id, department, job_function")
+      .from("company_employees")
+      .select("id, full_name, employee_id, department")
       .eq("status", "ativo")
       .order("full_name");
 
@@ -233,7 +232,6 @@ export default function EmployeeEpiReport() {
           Funcionário: summary.employee.full_name,
           Matrícula: summary.employee.employee_id,
           Departamento: summary.employee.department || "-",
-          Função: summary.employee.job_function || "-",
           Tipo: m.type === "withdrawal" ? "Retirada" : "Devolução",
           "Código Produto": m.product.code || "-",
           Produto: m.product.name,
@@ -251,7 +249,6 @@ export default function EmployeeEpiReport() {
           Funcionário: summary.employee.full_name,
           Matrícula: summary.employee.employee_id,
           Departamento: summary.employee.department || "-",
-          Função: summary.employee.job_function || "-",
           Tipo: "-",
           "Código Produto": "-",
           Produto: "Sem movimentações",
@@ -356,7 +353,6 @@ export default function EmployeeEpiReport() {
                         <p className="text-sm text-muted-foreground">
                           Mat: {summary.employee.employee_id}
                           {summary.employee.department && ` | ${summary.employee.department}`}
-                          {summary.employee.job_function && ` | ${summary.employee.job_function}`}
                         </p>
                       </div>
                     </div>

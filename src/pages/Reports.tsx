@@ -113,7 +113,7 @@ export default function Reports() {
   const fetchEmployees = async () => {
     try {
       const { data, error } = await supabase
-        .from("profiles")
+        .from("company_employees")
         .select("id, full_name, employee_id")
         .eq("status", "ativo")
         .order("full_name");
@@ -130,7 +130,7 @@ export default function Reports() {
     try {
       let query = supabase
         .from("withdrawals")
-        .select("quantity, product_id, employee_id, created_at, products(id, name, code, unit, categories(name)), profiles(full_name, employee_id)")
+        .select("quantity, product_id, employee_id, created_at, products(id, name, code, unit, categories(name)), company_employees(full_name, employee_id)")
         .gte("created_at", startOfDay(parseISO(consumptionDateFrom)).toISOString())
         .lte("created_at", endOfDay(parseISO(consumptionDateTo)).toISOString());
 
@@ -177,8 +177,8 @@ export default function Reports() {
             total_quantity: w.quantity,
             unit: w.products?.unit || "un",
             withdrawal_count: 1,
-            employee_name: w.profiles?.full_name || undefined,
-            employee_id_code: w.profiles?.employee_id || undefined,
+            employee_name: w.company_employees?.full_name || undefined,
+            employee_id_code: w.company_employees?.employee_id || undefined,
           });
         }
       });
