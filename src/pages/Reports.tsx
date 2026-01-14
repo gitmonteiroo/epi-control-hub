@@ -615,21 +615,114 @@ export default function Reports() {
         {/* EPIs que Necessitam Compra */}
         {(() => {
           const CRITICAL_THRESHOLD = 10;
-          const needsPurchase = products.filter(p => p.stock_available <= CRITICAL_THRESHOLD);
+          const needsPurchase = products.filter(p => p.stock_available <= CRITICAL_THRESHOLD)
+            .sort((a, b) => a.stock_available - b.stock_available);
           
           if (needsPurchase.length === 0) return null;
+
+          const exportNeedsPurchaseToPDF = () => {
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text("Lista de EPIs que Necessitam Compra", 14, 20);
+            
+            doc.setFontSize(12);
+            doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 30);
+            doc.text(`Total de itens: ${needsPurchase.length}`, 14, 38);
+            doc.text(`Critério: Estoque ≤ ${CRITICAL_THRESHOLD} unidades`, 14, 46);
+
+            const tableData = needsPurchase.map(p => [
+              p.code || "-",
+              p.name,
+              p.categories?.name || "-",
+              `${p.stock_available} ${p.unit}`,
+              `${p.min_stock} ${p.unit}`,
+              "Necessita Compra",
+            ]);
+
+            autoTable(doc, {
+              head: [["Código", "Produto", "Categoria", "Estoque Atual", "Estoque Mínimo", "Status"]],
+              body: tableData,
+              startY: 54,
+              styles: { fontSize: 9 },
+              headStyles: { fillColor: [234, 179, 8] },
+              alternateRowStyles: { fillColor: [254, 252, 232] },
+            });
+
+            doc.save(`epis-necessitam-compra-${new Date().toISOString().split("T")[0]}.pdf`);
+            
+            toast({
+              title: "PDF exportado",
+              description: `Lista com ${needsPurchase.length} EPIs que necessitam compra`,
+            });
+          };
+
+          const exportNeedsPurchaseToExcel = () => {
+            const data = needsPurchase.map(p => ({
+              "Código": p.code || "-",
+              "Produto": p.name,
+              "Categoria": p.categories?.name || "-",
+              "Estoque Atual": p.stock_available,
+              "Unidade": p.unit,
+              "Estoque Mínimo": p.min_stock,
+              "Status": "Necessita Compra",
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            ws["!cols"] = [
+              { wch: 12 },
+              { wch: 30 },
+              { wch: 18 },
+              { wch: 14 },
+              { wch: 10 },
+              { wch: 14 },
+              { wch: 16 },
+            ];
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Necessitam Compra");
+
+            XLSX.writeFile(wb, `epis-necessitam-compra-${new Date().toISOString().split("T")[0]}.xlsx`);
+            
+            toast({
+              title: "Excel exportado",
+              description: `Lista com ${needsPurchase.length} EPIs que necessitam compra`,
+            });
+          };
           
           return (
             <Card className="border-warning/50 bg-warning/5">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <ShoppingCart className="h-5 w-5 text-warning" />
-                  EPIs que Necessitam Compra
-                  <span className="ml-auto flex items-center gap-1 text-sm font-normal text-warning">
-                    <AlertTriangle className="h-4 w-4" />
-                    {needsPurchase.length} {needsPurchase.length === 1 ? 'item' : 'itens'}
-                  </span>
-                </CardTitle>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <CardTitle className="flex items-center gap-2 text-base flex-1">
+                    <ShoppingCart className="h-5 w-5 text-warning" />
+                    EPIs que Necessitam Compra
+                    <span className="flex items-center gap-1 text-sm font-normal text-warning">
+                      <AlertTriangle className="h-4 w-4" />
+                      {needsPurchase.length} {needsPurchase.length === 1 ? 'item' : 'itens'}
+                    </span>
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportNeedsPurchaseToPDF}
+                      className="border-warning/50 hover:bg-warning/10"
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      PDF
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportNeedsPurchaseToExcel}
+                      className="border-warning/50 hover:bg-warning/10"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 mr-1" />
+                      Excel
+                    </Button>
+                  </div>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   EPIs com estoque crítico (≤ {CRITICAL_THRESHOLD} unidades) que precisam de reposição
                 </p>
@@ -647,29 +740,27 @@ export default function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {needsPurchase
-                      .sort((a, b) => a.stock_available - b.stock_available)
-                      .map((product) => (
-                        <TableRow key={product.id} className="hover:bg-muted/50">
-                          <TableCell className="font-mono text-sm">{product.code || "-"}</TableCell>
-                          <TableCell className="font-medium">{product.name}</TableCell>
-                          <TableCell>{product.categories?.name || "-"}</TableCell>
-                          <TableCell className="text-center">
-                            <span className={`font-bold ${product.stock_available === 0 ? 'text-danger' : product.stock_available <= 5 ? 'text-danger' : 'text-warning'}`}>
-                              {product.stock_available} {product.unit}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-center text-muted-foreground">
-                            {product.min_stock} {product.unit}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-warning/20 text-warning-foreground border border-warning/30">
-                              <ShoppingCart className="h-3 w-3" />
-                              Necessita Compra
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                    {needsPurchase.map((product) => (
+                      <TableRow key={product.id} className="hover:bg-muted/50">
+                        <TableCell className="font-mono text-sm">{product.code || "-"}</TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{product.categories?.name || "-"}</TableCell>
+                        <TableCell className="text-center">
+                          <span className={`font-bold ${product.stock_available === 0 ? 'text-danger' : product.stock_available <= 5 ? 'text-danger' : 'text-warning'}`}>
+                            {product.stock_available} {product.unit}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center text-muted-foreground">
+                          {product.min_stock} {product.unit}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-warning/20 text-warning-foreground border border-warning/30">
+                            <ShoppingCart className="h-3 w-3" />
+                            Necessita Compra
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
