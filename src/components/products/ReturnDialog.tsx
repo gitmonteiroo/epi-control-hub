@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { fetchEmployees, type Employee } from "@/services/employeeService";
+import { fetchActiveCompanyEmployees, type CompanyEmployee } from "@/services/companyEmployeeService";
 import { createReturn } from "@/services/movementService";
 import { EPI_CONDITIONS } from "@/utils/stock";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,7 +63,7 @@ export function ReturnDialog({
   productId,
   onSuccess,
 }: ReturnDialogProps) {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<CompanyEmployee[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -93,7 +93,7 @@ export function ReturnDialog({
   const loadData = async () => {
     try {
       const [employeesData, productsRes] = await Promise.all([
-        fetchEmployees(),
+        fetchActiveCompanyEmployees(),
         supabase.from("products").select("id, code, name, unit").order("name"),
       ]);
 

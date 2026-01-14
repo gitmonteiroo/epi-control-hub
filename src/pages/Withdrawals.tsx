@@ -14,8 +14,9 @@ interface Withdrawal {
   quantity: number;
   reason: string | null;
   created_at: string;
+  employee_id: string;
   products: { name: string; unit: string; code: string | null } | null;
-  profiles: { full_name: string; employee_id: string } | null;
+  employee?: { full_name: string; employee_id: string } | null;
 }
 
 export default function Withdrawals() {
@@ -29,14 +30,28 @@ export default function Withdrawals() {
 
   const fetchWithdrawals = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch withdrawals with products
+      const { data: withdrawalsData, error: withdrawalsError } = await supabase
         .from("withdrawals")
-        .select("*, products(name, unit, code), profiles(full_name, employee_id)")
+        .select("*, products(name, unit, code)")
         .order("created_at", { ascending: false })
         .limit(100);
 
-      if (error) throw error;
-      setWithdrawals(data || []);
+      if (withdrawalsError) throw withdrawalsError;
+
+      // Fetch company employees
+      const { data: employeesData } = await supabase
+        .from("company_employees")
+        .select("id, full_name, employee_id");
+
+      // Map employees to withdrawals
+      const employeesMap = new Map(employeesData?.map(e => [e.id, e]) || []);
+      const enrichedWithdrawals = (withdrawalsData || []).map(w => ({
+        ...w,
+        employee: employeesMap.get(w.employee_id) || null,
+      }));
+
+      setWithdrawals(enrichedWithdrawals);
     } catch (error) {
       console.error("Error:", error);
     } finally {
@@ -59,8 +74,8 @@ export default function Withdrawals() {
     return (
       w.products?.name.toLowerCase().includes(term) ||
       w.products?.code?.toLowerCase().includes(term) ||
-      w.profiles?.full_name.toLowerCase().includes(term) ||
-      w.profiles?.employee_id.toLowerCase().includes(term)
+      w.employee?.full_name.toLowerCase().includes(term) ||
+      w.employee?.employee_id.toLowerCase().includes(term)
     );
   });
 
@@ -137,8 +152,8 @@ export default function Withdrawals() {
                         <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                           <User className="h-3 w-3" />
                           <span className="truncate">
-                            {w.profiles?.full_name}{" "}
-                            <span className="font-mono">(Mat: {w.profiles?.employee_id})</span>
+                            {w.employee?.full_name || "—"}{" "}
+                            <span className="font-mono">(Mat: {w.employee?.employee_id || "—"})</span>
                           </span>
                         </div>
                         {w.reason && (

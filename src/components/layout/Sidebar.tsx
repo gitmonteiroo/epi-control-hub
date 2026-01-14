@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   Package,
-  Users,
+  UserRound,
   FolderTree,
   ClipboardList,
   FileText,
@@ -45,12 +45,11 @@ const navItems: NavItem[] = [
   },
   {
     title: "Funcionários",
-    href: "/employees",
-    icon: Users,
-    adminOnly: true,
+    href: "/company-employees",
+    icon: UserRound,
   },
   {
-    title: "Usuários",
+    title: "Usuários do Sistema",
     href: "/users",
     icon: ShieldCheck,
     superAdminOnly: true,
