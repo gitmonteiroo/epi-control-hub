@@ -24,15 +24,16 @@ interface Movement {
   quantity: number;
   notes: string | null;
   created_at: string;
+  employee_id: string;
   products: {
     name: string;
     unit: string;
     code: string | null;
   };
-  profiles: {
+  employee?: {
     full_name: string;
     employee_id: string;
-  };
+  } | null;
 }
 
 export default function Movements() {
@@ -55,14 +56,28 @@ export default function Movements() {
         .from("stock_movements")
         .select(`
           *,
-          products(name, unit, code),
-          profiles(full_name, employee_id)
+          products(name, unit, code)
         `)
         .order("created_at", { ascending: false })
         .limit(200);
 
       if (error) throw error;
-      setMovements((data || []) as Movement[]);
+
+      // Fetch employee data from company_employees
+      const employeeIds = [...new Set((data || []).map(m => m.employee_id))];
+      const { data: employees } = await supabase
+        .from("company_employees")
+        .select("id, full_name, employee_id")
+        .in("id", employeeIds);
+
+      const employeeMap = new Map((employees || []).map(e => [e.id, e]));
+
+      const movementsWithEmployees = (data || []).map(m => ({
+        ...m,
+        employee: employeeMap.get(m.employee_id) || null,
+      }));
+
+      setMovements(movementsWithEmployees as Movement[]);
     } catch (error) {
       console.error("Error:", error);
       toast({
@@ -94,8 +109,8 @@ export default function Movements() {
     const matchesSearch =
       m.products.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.products.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.profiles.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.profiles.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
+      m.employee?.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.employee?.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesType = typeFilter === "all" || m.type === typeFilter;
     
@@ -219,7 +234,7 @@ export default function Movements() {
                       <DataCardRow
                         icon={<User className="h-4 w-4" />}
                         label="Funcionário"
-                        value={`${movement.profiles.full_name} (Mat: ${movement.profiles.employee_id})`}
+                        value={`${movement.employee?.full_name || "N/A"} (Mat: ${movement.employee?.employee_id || "N/A"})`}
                       />
                       <DataCardRow
                         icon={<Calendar className="h-4 w-4" />}
@@ -274,9 +289,9 @@ export default function Movements() {
                       </TableCell>
                       <TableCell>{movement.quantity} {movement.products.unit}</TableCell>
                       <TableCell>
-                        {movement.profiles.full_name}
+                        {movement.employee?.full_name || "N/A"}
                         <span className="block text-xs text-muted-foreground font-mono">
-                          Mat: {movement.profiles.employee_id}
+                          Mat: {movement.employee?.employee_id || "N/A"}
                         </span>
                       </TableCell>
                       <TableCell>{formatDate(movement.created_at)}</TableCell>

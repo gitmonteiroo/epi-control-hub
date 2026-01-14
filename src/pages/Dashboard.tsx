@@ -45,8 +45,9 @@ interface RecentWithdrawal {
   id: string;
   quantity: number;
   created_at: string;
+  employee_id: string;
   products: { name: string; code: string | null } | null;
-  profiles: { full_name: string } | null;
+  employee?: { full_name: string } | null;
 }
 
 export default function Dashboard() {
@@ -75,7 +76,7 @@ export default function Dashboard() {
           .order("stock_available", { ascending: true }),
         supabase
           .from("withdrawals")
-          .select("id, quantity, created_at, products(name, code), profiles(full_name)")
+          .select("id, quantity, created_at, employee_id, products(name, code)")
           .order("created_at", { ascending: false })
           .limit(5),
       ]);
@@ -88,7 +89,22 @@ export default function Dashboard() {
         .filter((p) => p.stock_available <= p.min_stock * 1.5)
         .slice(0, 8);
       setProducts(lowStockProducts);
-      setRecentWithdrawals(withdrawalsRes.data || []);
+
+      // Fetch employee data from company_employees
+      const employeeIds = [...new Set((withdrawalsRes.data || []).map(w => w.employee_id))];
+      const { data: employees } = await supabase
+        .from("company_employees")
+        .select("id, full_name")
+        .in("id", employeeIds);
+
+      const employeeMap = new Map((employees || []).map(e => [e.id, e]));
+
+      const withdrawalsWithEmployees = (withdrawalsRes.data || []).map(w => ({
+        ...w,
+        employee: employeeMap.get(w.employee_id) || null,
+      }));
+
+      setRecentWithdrawals(withdrawalsWithEmployees);
 
       const totalCount = allProducts.length;
       const lowStockCount = allProducts.filter((p) => p.stock_available <= p.min_stock).length;
@@ -277,7 +293,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <User className="h-3 w-3" />
                             <span className="truncate">
-                              {withdrawal.profiles?.full_name || "Funcionário"}
+                              {withdrawal.employee?.full_name || "Funcionário"}
                             </span>
                           </div>
                         </div>
