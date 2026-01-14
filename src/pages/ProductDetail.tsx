@@ -277,11 +277,11 @@ export default function ProductDetail() {
                     >
                       <div className="flex-1">
                         <p className="font-medium">
-                          {withdrawal.profiles?.full_name ||
+                          {withdrawal.employee?.full_name ||
                             "Funcionário não encontrado"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Mat: {withdrawal.profiles?.employee_id}
+                          Mat: {withdrawal.employee?.employee_id}
                         </p>
                         {withdrawal.reason && (
                           <p className="text-sm text-muted-foreground italic mt-1">
@@ -325,11 +325,11 @@ export default function ProductDetail() {
                     >
                       <div className="flex-1">
                         <p className="font-medium">
-                          {returnItem.profiles?.full_name ||
+                          {returnItem.employee?.full_name ||
                             "Funcionário não encontrado"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Mat: {returnItem.profiles?.employee_id}
+                          Mat: {returnItem.employee?.employee_id}
                         </p>
                         <Badge variant="outline" className="mt-1">
                           {getConditionLabel(returnItem.condition)}

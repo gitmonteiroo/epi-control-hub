@@ -20,7 +20,8 @@ export interface Withdrawal {
   quantity: number;
   reason: string | null;
   created_at: string;
-  profiles: { full_name: string; employee_id: string } | null;
+  employee_id: string;
+  employee?: { full_name: string; employee_id: string } | null;
 }
 
 export interface Return {
@@ -29,7 +30,8 @@ export interface Return {
   reason: string | null;
   condition: string | null;
   created_at: string;
-  profiles: { full_name: string; employee_id: string } | null;
+  employee_id: string;
+  employee?: { full_name: string; employee_id: string } | null;
 }
 
 export async function createWithdrawal(data: WithdrawalData) {
@@ -45,25 +47,51 @@ export async function createReturn(data: ReturnData) {
 export async function fetchWithdrawalsByProduct(productId: string, limit = 10) {
   const { data, error } = await supabase
     .from("withdrawals")
-    .select("id, quantity, reason, created_at, profiles(full_name, employee_id)")
+    .select("id, quantity, reason, created_at, employee_id")
     .eq("product_id", productId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return data as Withdrawal[];
+
+  // Fetch employee data from company_employees
+  const employeeIds = [...new Set((data || []).map(w => w.employee_id))];
+  const { data: employees } = await supabase
+    .from("company_employees")
+    .select("id, full_name, employee_id")
+    .in("id", employeeIds);
+
+  const employeeMap = new Map((employees || []).map(e => [e.id, e]));
+
+  return (data || []).map(w => ({
+    ...w,
+    employee: employeeMap.get(w.employee_id) || null,
+  })) as Withdrawal[];
 }
 
 export async function fetchReturnsByProduct(productId: string, limit = 10) {
   const { data, error } = await supabase
     .from("returns")
-    .select("id, quantity, reason, condition, created_at, profiles(full_name, employee_id)")
+    .select("id, quantity, reason, condition, created_at, employee_id")
     .eq("product_id", productId)
     .order("created_at", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return data as Return[];
+
+  // Fetch employee data from company_employees
+  const employeeIds = [...new Set((data || []).map(r => r.employee_id))];
+  const { data: employees } = await supabase
+    .from("company_employees")
+    .select("id, full_name, employee_id")
+    .in("id", employeeIds);
+
+  const employeeMap = new Map((employees || []).map(e => [e.id, e]));
+
+  return (data || []).map(r => ({
+    ...r,
+    employee: employeeMap.get(r.employee_id) || null,
+  })) as Return[];
 }
 
 export async function fetchTodayWithdrawalsCount() {
