@@ -78,3 +78,20 @@ export async function fetchTodayWithdrawalsCount() {
   if (error) throw error;
   return count || 0;
 }
+
+export async function fetchTodayMovementsCount() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from("stock_movements")
+    .select("type")
+    .gte("created_at", today.toISOString());
+
+  if (error) throw error;
+  
+  const entries = (data || []).filter(m => m.type === "entrada").length;
+  const exits = (data || []).filter(m => m.type === "saida").length;
+  
+  return { entries, exits, total: entries + exits };
+}

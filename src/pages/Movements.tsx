@@ -10,7 +10,9 @@ import { DataCard, DataCardHeader, DataCardContent, DataCardRow } from "@/compon
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingPage } from "@/components/ui/loading";
-import { Package, Plus, ArrowUpCircle, ArrowDownCircle, User, Calendar } from "lucide-react";
+import { SearchInput } from "@/components/ui/search-input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Package, Plus, ArrowUpCircle, ArrowDownCircle, User, Calendar, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -24,9 +26,12 @@ interface Movement {
   created_at: string;
   products: {
     name: string;
+    unit: string;
+    code: string | null;
   };
   profiles: {
     full_name: string;
+    employee_id: string;
   };
 }
 
@@ -34,6 +39,8 @@ export default function Movements() {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "entrada" | "saida">("all");
   const { toast } = useToast();
   const { canManage } = useAuth();
   const isMobile = useIsMobile();
@@ -48,10 +55,11 @@ export default function Movements() {
         .from("stock_movements")
         .select(`
           *,
-          products(name),
-          profiles(full_name)
+          products(name, unit, code),
+          profiles(full_name, employee_id)
         `)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
 
       if (error) throw error;
       setMovements((data || []) as Movement[]);
@@ -81,6 +89,21 @@ export default function Movements() {
       minute: "2-digit",
     });
   };
+
+  const filteredMovements = movements.filter((m) => {
+    const matchesSearch =
+      m.products.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.products.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.profiles.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.profiles.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = typeFilter === "all" || m.type === typeFilter;
+    
+    return matchesSearch && matchesType;
+  });
+
+  const entryCount = movements.filter((m) => m.type === "entrada").length;
+  const exitCount = movements.filter((m) => m.type === "saida").length;
 
   if (loading) {
     return (
@@ -120,30 +143,57 @@ export default function Movements() {
           }
         />
 
+        {/* Filtros */}
+        <Card>
+          <CardContent className="p-3 sm:pt-5 sm:px-6">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <SearchInput
+                value={searchTerm}
+                onChange={setSearchTerm}
+                placeholder="Buscar por produto ou funcionário..."
+                className="w-full sm:max-w-md"
+              />
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as "all" | "entrada" | "saida")}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos ({movements.length})</SelectItem>
+                    <SelectItem value="entrada">Entradas ({entryCount})</SelectItem>
+                    <SelectItem value="saida">Saídas ({exitCount})</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
               <Package className="h-5 w-5" />
               Histórico
               <Badge variant="secondary" className="ml-auto">
-                {movements.length} registros
+                {filteredMovements.length} registros
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {movements.length === 0 ? (
+            {filteredMovements.length === 0 ? (
               <EmptyState
                 icon={<Package className="h-12 w-12 text-muted-foreground mb-4" />}
-                title="Nenhuma movimentação registrada"
-                description="As movimentações aparecerão aqui quando forem registradas"
+                title={searchTerm || typeFilter !== "all" ? "Nenhuma movimentação encontrada" : "Nenhuma movimentação registrada"}
+                description={searchTerm || typeFilter !== "all" ? "Tente ajustar os filtros de busca" : "As movimentações aparecerão aqui quando forem registradas"}
               />
             ) : isMobile ? (
               // Mobile: Card layout
               <div className="space-y-3">
-                {movements.map((movement) => (
+                {filteredMovements.map((movement) => (
                   <DataCard
                     key={movement.id}
-                    statusColor={movement.type === "entrada" ? "success" : "warning"}
+                    statusColor={movement.type === "entrada" ? "success" : "danger"}
                   >
                     <DataCardHeader>
                       <div className="flex-1 min-w-0">
@@ -159,17 +209,17 @@ export default function Movements() {
                         </div>
                       </div>
                       <Badge
-                        variant={movement.type === "entrada" ? "success" : "warning"}
+                        variant={movement.type === "entrada" ? "success" : "danger"}
                         className="text-base font-bold px-3 py-1"
                       >
-                        {movement.type === "entrada" ? "+" : "-"}{movement.quantity}
+                        {movement.type === "entrada" ? "+" : "-"}{movement.quantity} {movement.products.unit}
                       </Badge>
                     </DataCardHeader>
                     <DataCardContent>
                       <DataCardRow
                         icon={<User className="h-4 w-4" />}
                         label="Funcionário"
-                        value={movement.profiles.full_name}
+                        value={`${movement.profiles.full_name} (Mat: ${movement.profiles.employee_id})`}
                       />
                       <DataCardRow
                         icon={<Calendar className="h-4 w-4" />}
@@ -199,11 +249,11 @@ export default function Movements() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {movements.map((movement) => (
+                  {filteredMovements.map((movement) => (
                     <TableRow key={movement.id}>
                       <TableCell>
                         <Badge
-                          variant={movement.type === "entrada" ? "success" : "warning"}
+                          variant={movement.type === "entrada" ? "success" : "danger"}
                           className="flex items-center gap-1 w-fit"
                         >
                           {movement.type === "entrada" ? (
@@ -214,9 +264,21 @@ export default function Movements() {
                           {movement.type === "entrada" ? "Entrada" : "Saída"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="font-medium">{movement.products.name}</TableCell>
-                      <TableCell>{movement.quantity}</TableCell>
-                      <TableCell>{movement.profiles.full_name}</TableCell>
+                      <TableCell className="font-medium">
+                        {movement.products.name}
+                        {movement.products.code && (
+                          <span className="ml-2 text-xs font-mono text-muted-foreground">
+                            #{movement.products.code}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>{movement.quantity} {movement.products.unit}</TableCell>
+                      <TableCell>
+                        {movement.profiles.full_name}
+                        <span className="block text-xs text-muted-foreground font-mono">
+                          Mat: {movement.profiles.employee_id}
+                        </span>
+                      </TableCell>
                       <TableCell>{formatDate(movement.created_at)}</TableCell>
                       <TableCell className="max-w-xs truncate">
                         {movement.notes || "-"}
