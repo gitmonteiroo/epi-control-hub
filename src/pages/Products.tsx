@@ -7,8 +7,8 @@ import { SearchInput } from "@/components/ui/search-input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingPage } from "@/components/ui/loading";
 import { PageHeader } from "@/components/ui/page-header";
-import { StockIndicator, StockBar } from "@/components/ui/stock-indicator";
-import { Plus, Package, ChevronRight, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { StockBar } from "@/components/ui/stock-indicator";
+import { Plus, Package, ChevronRight, AlertTriangle, CheckCircle, XCircle, FileDown, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -23,6 +23,10 @@ import {
   type ProductListItem,
 } from "@/services/productService";
 import { fetchCategories, type Category } from "@/services/categoryService";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 type StockStatusFilter = "all" | "critical" | "low" | "normal";
 
@@ -81,6 +85,62 @@ export default function Products() {
     return matchesSearch && matchesCategory && matchesStock;
   });
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Lista de Produtos", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 28);
+    doc.text(`Total: ${filteredProducts.length} produtos`, 14, 34);
+
+    const tableData = filteredProducts.map(p => [
+      p.code || "-",
+      p.name,
+      p.categories?.name || "-",
+      p.stock_available.toString(),
+      p.min_stock.toString(),
+      p.unit,
+      p.stock_available === 0 ? "Crítico" : p.stock_available <= p.min_stock ? "Baixo" : "Normal",
+    ]);
+
+    autoTable(doc, {
+      head: [["Código", "Produto", "Categoria", "Estoque", "Mín.", "Unid.", "Status"]],
+      body: tableData,
+      startY: 42,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`produtos-${new Date().toISOString().split("T")[0]}.pdf`);
+    toast.success("PDF exportado com sucesso");
+  };
+
+  const exportToExcel = () => {
+    const data = filteredProducts.map(p => ({
+      "Código": p.code || "-",
+      "Produto": p.name,
+      "Descrição": p.description || "-",
+      "Categoria": p.categories?.name || "-",
+      "Estoque Atual": p.stock_available,
+      "Estoque Mínimo": p.min_stock,
+      "Unidade": p.unit,
+      "Status": p.stock_available === 0 ? "Crítico" : p.stock_available <= p.min_stock ? "Baixo" : "Normal",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 30 }, { wch: 40 }, { wch: 18 },
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Produtos");
+    XLSX.writeFile(wb, `produtos-${new Date().toISOString().split("T")[0]}.xlsx`);
+    toast.success("Excel exportado com sucesso");
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -96,12 +156,22 @@ export default function Products() {
           title="Produtos"
           description="Gestão de produtos e EPIs"
           actions={
-            canManage ? (
-              <Button onClick={() => navigate("/products/new")} size="lg">
-                <Plus className="mr-2 h-5 w-5" />
-                Novo Produto
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileDown className="mr-2 h-4 w-4" />
+                PDF
               </Button>
-            ) : undefined
+              <Button variant="outline" size="sm" onClick={exportToExcel}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Excel
+              </Button>
+              {canManage && (
+                <Button onClick={() => navigate("/products/new")} size="lg">
+                  <Plus className="mr-2 h-5 w-5" />
+                  Novo Produto
+                </Button>
+              )}
+            </div>
           }
         />
 

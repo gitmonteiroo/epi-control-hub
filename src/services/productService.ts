@@ -60,3 +60,8 @@ export async function fetchLowStockProducts(limit = 10) {
     .filter((p) => p.stock_available <= p.min_stock * 1.5)
     .slice(0, limit);
 }
+
+export async function deleteProduct(id: string) {
+  const { error } = await supabase.from("products").delete().eq("id", id);
+  if (error) throw error;
+}

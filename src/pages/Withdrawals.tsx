@@ -3,11 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { LoadingPage } from "@/components/ui/loading";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { SearchInput } from "@/components/ui/search-input";
-import { ClipboardList, ArrowDownRight, User, Package } from "lucide-react";
+import { ClipboardList, ArrowDownRight, User, Package, FileDown, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 interface Withdrawal {
   id: string;
@@ -35,7 +40,7 @@ export default function Withdrawals() {
         .from("withdrawals")
         .select("*, products(name, unit, code)")
         .order("created_at", { ascending: false })
-        .limit(100);
+        .limit(500);
 
       if (withdrawalsError) throw withdrawalsError;
 
@@ -54,6 +59,7 @@ export default function Withdrawals() {
       setWithdrawals(enrichedWithdrawals);
     } catch (error) {
       console.error("Error:", error);
+      toast.error("Erro ao carregar retiradas");
     } finally {
       setLoading(false);
     }
@@ -79,6 +85,63 @@ export default function Withdrawals() {
     );
   });
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Histórico de Retiradas de EPIs", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 28);
+    doc.text(`Total: ${filteredWithdrawals.length} retiradas`, 14, 34);
+
+    const tableData = filteredWithdrawals.map(w => [
+      w.products?.code || "-",
+      w.products?.name || "-",
+      w.employee?.full_name || "-",
+      w.employee?.employee_id || "-",
+      w.quantity.toString(),
+      w.products?.unit || "-",
+      w.reason || "-",
+      formatDate(w.created_at),
+    ]);
+
+    autoTable(doc, {
+      head: [["Código", "Produto", "Funcionário", "Matrícula", "Qtd", "Unid.", "Motivo", "Data"]],
+      body: tableData,
+      startY: 42,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [220, 38, 38] },
+    });
+
+    doc.save(`retiradas-${new Date().toISOString().split("T")[0]}.pdf`);
+    toast.success("PDF exportado com sucesso");
+  };
+
+  const exportToExcel = () => {
+    const data = filteredWithdrawals.map(w => ({
+      "Código": w.products?.code || "-",
+      "Produto": w.products?.name || "-",
+      "Funcionário": w.employee?.full_name || "-",
+      "Matrícula": w.employee?.employee_id || "-",
+      "Quantidade": w.quantity,
+      "Unidade": w.products?.unit || "-",
+      "Motivo": w.reason || "-",
+      "Data": formatDate(w.created_at),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 12 }, { wch: 30 }, { wch: 25 }, { wch: 12 },
+      { wch: 10 }, { wch: 8 }, { wch: 20 }, { wch: 18 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Retiradas");
+    XLSX.writeFile(wb, `retiradas-${new Date().toISOString().split("T")[0]}.xlsx`);
+    toast.success("Excel exportado com sucesso");
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -93,6 +156,18 @@ export default function Withdrawals() {
         <PageHeader
           title="Retiradas"
           description="Histórico de retiradas de EPIs"
+          actions={
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileDown className="mr-2 h-4 w-4" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToExcel}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Excel
+              </Button>
+            </div>
+          }
         />
 
         <Card>
@@ -111,7 +186,7 @@ export default function Withdrawals() {
             <CardTitle className="flex items-center gap-2 text-lg">
               <ClipboardList className="h-5 w-5" />
               <span className="sm:hidden">Últimas</span>
-              <span className="hidden sm:inline">Últimas Retiradas</span>
+              <span className="hidden sm:inline">Histórico de Retiradas</span>
               <Badge variant="secondary" className="ml-auto">
                 {filteredWithdrawals.length}
               </Badge>
