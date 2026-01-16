@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingPage } from "@/components/ui/loading";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   ArrowLeft,
   Edit,
   Package,
@@ -13,6 +24,7 @@ import {
   Plus,
   RotateCcw,
   Shield,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -20,6 +32,7 @@ import { WithdrawalDialog } from "@/components/products/WithdrawalDialog";
 import { ReturnDialog } from "@/components/products/ReturnDialog";
 import {
   fetchProductById,
+  deleteProduct,
   type Product,
 } from "@/services/productService";
 import {
@@ -30,15 +43,17 @@ import {
 } from "@/services/movementService";
 import { getStockStatus, getConditionLabel } from "@/utils/stock";
 import { formatDateShort } from "@/utils/formatters";
+import { createAuditLog } from "@/services/auditService";
 
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canManage } = useAuth();
+  const { canManage, isAdmin } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [returns, setReturns] = useState<Return[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [withdrawalDialogOpen, setWithdrawalDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
 
@@ -63,6 +78,26 @@ export default function ProductDetail() {
       navigate("/products");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!product || !id) return;
+    
+    setDeleting(true);
+    try {
+      await deleteProduct(id);
+      await createAuditLog({
+        acao: "Excluiu EPI",
+        entidade: "EPI",
+        detalhes: { id, nome: product.name, codigo: product.code },
+      });
+      toast.success("Produto excluído com sucesso");
+      navigate("/products");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao excluir produto");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -125,6 +160,31 @@ export default function ProductDetail() {
                 <Edit className="mr-2 h-4 w-4" />
                 Editar
               </Button>
+            )}
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={deleting}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Excluir
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja excluir o produto "{product.name}"?
+                      Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      {deleting ? "Excluindo..." : "Excluir"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </div>
@@ -281,7 +341,7 @@ export default function ProductDetail() {
                             "Funcionário não encontrado"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Mat: {withdrawal.employee?.employee_id}
+                          Mat: {withdrawal.employee?.employee_id || "-"}
                         </p>
                         {withdrawal.reason && (
                           <p className="text-sm text-muted-foreground italic mt-1">
@@ -329,7 +389,7 @@ export default function ProductDetail() {
                             "Funcionário não encontrado"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Mat: {returnItem.employee?.employee_id}
+                          Mat: {returnItem.employee?.employee_id || "-"}
                         </p>
                         <Badge variant="outline" className="mt-1">
                           {getConditionLabel(returnItem.condition)}

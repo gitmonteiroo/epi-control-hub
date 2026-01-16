@@ -12,11 +12,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingPage } from "@/components/ui/loading";
 import { SearchInput } from "@/components/ui/search-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Package, Plus, ArrowUpCircle, ArrowDownCircle, User, Calendar, Filter } from "lucide-react";
+import { Package, Plus, ArrowUpCircle, ArrowDownCircle, User, Calendar, Filter, FileDown, FileSpreadsheet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 interface Movement {
   id: string;
@@ -42,7 +46,7 @@ export default function Movements() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "entrada" | "saida">("all");
-  const { toast } = useToast();
+  const { toast: toastHook } = useToast();
   const { canManage } = useAuth();
   const isMobile = useIsMobile();
 
@@ -59,7 +63,7 @@ export default function Movements() {
           products(name, unit, code)
         `)
         .order("created_at", { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (error) throw error;
 
@@ -80,7 +84,7 @@ export default function Movements() {
       setMovements(movementsWithEmployees as Movement[]);
     } catch (error) {
       console.error("Error:", error);
-      toast({
+      toastHook({
         title: "Erro",
         description: "Não foi possível carregar movimentações",
         variant: "destructive",
@@ -120,6 +124,77 @@ export default function Movements() {
   const entryCount = movements.filter((m) => m.type === "entrada").length;
   const exitCount = movements.filter((m) => m.type === "saida").length;
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.text("Histórico de Movimentações de Estoque", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 14, 28);
+    doc.text(`Total: ${filteredMovements.length} movimentações`, 14, 34);
+    doc.text(`Entradas: ${entryCount} | Saídas: ${exitCount}`, 14, 40);
+
+    const tableData = filteredMovements.map(m => [
+      m.type === "entrada" ? "Entrada" : "Saída",
+      m.products.code || "-",
+      m.products.name,
+      m.quantity.toString(),
+      m.products.unit,
+      m.employee?.full_name || "-",
+      m.employee?.employee_id || "-",
+      m.notes || "-",
+      formatDate(m.created_at),
+    ]);
+
+    autoTable(doc, {
+      head: [["Tipo", "Código", "Produto", "Qtd", "Unid.", "Funcionário", "Mat.", "Obs.", "Data"]],
+      body: tableData,
+      startY: 48,
+      styles: { fontSize: 7 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`movimentacoes-${new Date().toISOString().split("T")[0]}.pdf`);
+    toast.success("PDF exportado com sucesso");
+  };
+
+  const exportToExcel = () => {
+    const data = filteredMovements.map(m => ({
+      "Tipo": m.type === "entrada" ? "Entrada" : "Saída",
+      "Código": m.products.code || "-",
+      "Produto": m.products.name,
+      "Quantidade": m.quantity,
+      "Unidade": m.products.unit,
+      "Funcionário": m.employee?.full_name || "-",
+      "Matrícula": m.employee?.employee_id || "-",
+      "Observações": m.notes || "-",
+      "Data": formatDate(m.created_at),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 10 }, { wch: 12 }, { wch: 30 }, { wch: 10 },
+      { wch: 8 }, { wch: 25 }, { wch: 12 }, { wch: 30 }, { wch: 18 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Movimentações");
+
+    // Resumo
+    const summaryData = [
+      { "Métrica": "Total de Movimentações", "Valor": filteredMovements.length },
+      { "Métrica": "Entradas", "Valor": entryCount },
+      { "Métrica": "Saídas", "Valor": exitCount },
+      { "Métrica": "Data do Relatório", "Valor": new Date().toLocaleDateString("pt-BR") },
+    ];
+    const summaryWs = XLSX.utils.json_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(wb, summaryWs, "Resumo");
+
+    XLSX.writeFile(wb, `movimentacoes-${new Date().toISOString().split("T")[0]}.xlsx`);
+    toast.success("Excel exportado com sucesso");
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -135,26 +210,36 @@ export default function Movements() {
           title="Movimentações"
           description="Histórico de entradas e saídas de estoque"
           actions={
-            canManage ? (
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="w-full sm:w-auto">
-                    <Plus className="mr-2 h-5 w-5" />
-                    <span className="sm:hidden">Entrada</span>
-                    <span className="hidden sm:inline">Registrar Entrada</span>
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-h-[90vh] w-[95vw] max-w-2xl overflow-y-auto sm:w-full">
-                  <DialogHeader>
-                    <DialogTitle>Registrar Entrada de Estoque</DialogTitle>
-                  </DialogHeader>
-                  <MovementForm
-                    onSuccess={handleFormSuccess}
-                    onCancel={() => setDialogOpen(false)}
-                  />
-                </DialogContent>
-              </Dialog>
-            ) : undefined
+            <div className="flex gap-2 flex-wrap">
+              <Button variant="outline" size="sm" onClick={exportToPDF}>
+                <FileDown className="mr-2 h-4 w-4" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToExcel}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Excel
+              </Button>
+              {canManage && (
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="lg" className="w-full sm:w-auto">
+                      <Plus className="mr-2 h-5 w-5" />
+                      <span className="sm:hidden">Entrada</span>
+                      <span className="hidden sm:inline">Registrar Entrada</span>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-h-[90vh] w-[95vw] max-w-2xl overflow-y-auto sm:w-full">
+                    <DialogHeader>
+                      <DialogTitle>Registrar Entrada de Estoque</DialogTitle>
+                    </DialogHeader>
+                    <MovementForm
+                      onSuccess={handleFormSuccess}
+                      onCancel={() => setDialogOpen(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
           }
         />
 
