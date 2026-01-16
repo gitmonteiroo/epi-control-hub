@@ -152,8 +152,16 @@ export function WithdrawalDialog({
       onOpenChange(false);
       onSuccess?.();
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Erro ao registrar retirada";
+      let errorMessage = "Erro ao registrar retirada";
+      if (error instanceof Error) {
+        // Handle database constraint/validation errors
+        if (error.message.includes("Estoque insuficiente") || 
+            error.message.includes("check_stock_non_negative")) {
+          errorMessage = "Estoque insuficiente para esta retirada. Verifique a quantidade disponível.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
       toast.error(errorMessage);
     } finally {
       setLoading(false);

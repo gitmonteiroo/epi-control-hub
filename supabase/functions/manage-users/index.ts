@@ -64,9 +64,59 @@ Deno.serve(async (req) => {
 
     const { action, ...data } = await req.json();
 
+    // Input validation helpers
+    const isValidEmail = (email: string): boolean => {
+      return typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
+
+    const isValidRole = (role: string): boolean => {
+      return ['admin', 'supervisor', 'operator'].includes(role);
+    };
+
     switch (action) {
       case "create": {
         const { email, password, fullName, employeeId, role } = data;
+
+        // Validate email
+        if (!email || !isValidEmail(email)) {
+          return new Response(JSON.stringify({ error: "Email inválido" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Validate password
+        if (!password || typeof password !== 'string' || password.length < 8) {
+          return new Response(JSON.stringify({ error: "Senha deve ter no mínimo 8 caracteres" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Validate fullName
+        if (!fullName || typeof fullName !== 'string' || fullName.length < 2 || fullName.length > 100) {
+          return new Response(JSON.stringify({ error: "Nome inválido" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Validate employeeId
+        if (!employeeId || typeof employeeId !== 'string' || employeeId.length < 1 || employeeId.length > 50) {
+          return new Response(JSON.stringify({ error: "Matrícula inválida" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Validate role
+        const userRole = role || "operator";
+        if (!isValidRole(userRole)) {
+          return new Response(JSON.stringify({ error: "Papel inválido" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
         // Create user in Auth
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -76,7 +126,7 @@ Deno.serve(async (req) => {
           user_metadata: {
             full_name: fullName,
             employee_id: employeeId,
-            role: role || "operator",
+            role: userRole,
           },
         });
 
@@ -95,6 +145,22 @@ Deno.serve(async (req) => {
 
       case "updateRole": {
         const { userId, role } = data;
+
+        // Validate userId
+        if (!userId || typeof userId !== 'string' || userId.length < 1) {
+          return new Response(JSON.stringify({ error: "ID de usuário inválido" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        // Validate role
+        if (!role || !isValidRole(role)) {
+          return new Response(JSON.stringify({ error: "Papel inválido. Use: admin, supervisor ou operator" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
         // Update role in profiles table
         const { error: updateError } = await supabaseAdmin
@@ -117,6 +183,14 @@ Deno.serve(async (req) => {
 
       case "delete": {
         const { userId } = data;
+
+        // Validate userId
+        if (!userId || typeof userId !== 'string' || userId.length < 1) {
+          return new Response(JSON.stringify({ error: "ID de usuário inválido" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
 
         // Prevent deleting self
         if (userId === requestingUser.id) {
