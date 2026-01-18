@@ -147,23 +147,25 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
 
         const tempPassword = generateSecurePassword();
 
-        // Para criar novo funcionário, precisamos primeiro criar o usuário no Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: values.email,
-          password: tempPassword,
-          options: {
-            data: {
-              full_name: values.full_name,
-              employee_id: values.employee_id,
-              role: values.role,
-            },
+        // Use secure edge function to create user (validates admin privileges server-side)
+        const { data: result, error: createError } = await supabase.functions.invoke("manage-users", {
+          body: {
+            action: "create",
+            email: values.email,
+            password: tempPassword,
+            fullName: values.full_name,
+            employeeId: values.employee_id,
+            role: values.role,
           },
         });
 
-        if (authError) throw authError;
+        if (createError) throw createError;
+        if (result?.error) throw new Error(result.error);
 
-        if (authData.user) {
-          // Atualizar o perfil criado automaticamente pelo trigger
+        const userId = result?.userId;
+
+        if (userId) {
+          // Update the profile with additional fields
           const { error: updateError } = await supabase
             .from("profiles")
             .update({
@@ -175,7 +177,7 @@ export function EmployeeForm({ employeeId, onSuccess, onCancel }: EmployeeFormPr
               phone: values.phone || null,
               status: values.status,
             })
-            .eq("id", authData.user.id);
+            .eq("id", userId);
 
           if (updateError) throw updateError;
         }
